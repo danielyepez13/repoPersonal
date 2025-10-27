@@ -431,3 +431,28 @@ query {
 3. **Campos anidados**: Cada relación tiene sus propios campos que puedes seleccionar.
 
 4. **Ordenamiento**: Los resultados se devuelven ordenados por `pokedexNumber` de forma ascendente.
+
+buscar por nombre:
+
+query {
+  pokemon(name: "bulbasaur") {
+    id
+    name
+    types { name slot }
+    abilities { name slot isHidden }
+    stats { name baseStat }
+  }
+}
+
+buscar varios por nombre:
+
+query {
+  searchPokemons(query: "bu", limit: 10, offset: 0) {
+    id
+    pokedexNumber
+    name
+    types { name slot }
+    abilities { name slot }
+    stats { name baseStat }
+  }
+}

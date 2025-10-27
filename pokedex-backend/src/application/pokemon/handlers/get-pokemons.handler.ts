@@ -24,6 +24,26 @@ export class GetPokemonsHandler {
     const existingIds = existingPokemons.map((p) => p.pokedexNumber);
     const missingIds = ids.filter((id) => !existingIds.includes(id));
 
+    // Separar pokémones existentes con relaciones incompletas
+    const pokemonsWithIncompleteRelations = existingPokemons.filter(
+      (p) =>
+        !p.types ||
+        p.types.length === 0 ||
+        !p.abilities ||
+        p.abilities.length === 0 ||
+        !p.stats ||
+        p.stats.length === 0,
+    );
+    const pokemonsWithCompleteRelations = existingPokemons.filter(
+      (p) =>
+        p.types &&
+        p.types.length > 0 &&
+        p.abilities &&
+        p.abilities.length > 0 &&
+        p.stats &&
+        p.stats.length > 0,
+    );
+
     // Buscar los que faltan en la PokeAPI y guardarlos
     const newPokemons = await Promise.all(
       missingIds.map(async (id) => {
@@ -32,9 +52,21 @@ export class GetPokemonsHandler {
       }),
     );
 
-    // Combinar y ordenar resultados
-    return [...existingPokemons, ...newPokemons].sort(
-      (a, b) => a.pokedexNumber - b.pokedexNumber,
+    // Actualizar pokémones con relaciones incompletas desde la PokeAPI
+    const updatedPokemons = await Promise.all(
+      pokemonsWithIncompleteRelations.map(async (p) => {
+        const apiPokemon = await this.pokeApiService.fetchPokemon(
+          p.pokedexNumber,
+        );
+        return this.pokemonRepository.save(apiPokemon);
+      }),
     );
+
+    // Combinar y ordenar resultados
+    return [
+      ...pokemonsWithCompleteRelations,
+      ...newPokemons,
+      ...updatedPokemons,
+    ].sort((a, b) => a.pokedexNumber - b.pokedexNumber);
   }
 }

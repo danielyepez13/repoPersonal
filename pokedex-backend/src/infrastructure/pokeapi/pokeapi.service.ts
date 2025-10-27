@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosResponse } from 'axios';
-import { Pokemon } from '../../domain/pokemon/entities/pokemon.entity';
+import { Pokemon } from '@/domain/pokemon/entities/pokemon.entity';
 
 interface PokeApiType {
   slot: number;
@@ -57,49 +57,82 @@ export class PokeApiService {
   private readonly baseUrl = 'https://pokeapi.co/api/v2';
 
   async fetchPokemon(id: number): Promise<PokemonWithRelations> {
+    return this.fetchPokemonData(`${this.baseUrl}/pokemon/${id}`, `id ${id}`);
+  }
+
+  async fetchPokemonByName(name: string): Promise<PokemonWithRelations> {
+    return this.fetchPokemonData(
+      `${this.baseUrl}/pokemon/${name}`,
+      `name ${name}`,
+    );
+  }
+
+  private async fetchPokemonData(
+    url: string,
+    identifier: string,
+  ): Promise<PokemonWithRelations> {
     try {
       const response: AxiosResponse<PokeApiPokemon> =
-        await axios.get<PokeApiPokemon>(`${this.baseUrl}/pokemon/${id}`);
+        await axios.get<PokeApiPokemon>(url);
       const apiData: PokeApiPokemon = response.data;
 
-      const pokemon = new Pokemon({
-        id: apiData.id,
-        pokedexNumber: apiData.id,
-        name: apiData.name,
-        height: apiData.height,
-        weight: apiData.weight,
-        spriteUrl: apiData.sprites.front_default,
-        createdAt: new Date(),
-      }) as PokemonWithRelations;
-
-      // Procesar tipos
-      pokemon.types = apiData.types.map((t) => ({
-        name: t.type.name,
-        slot: t.slot,
-      }));
-
-      // Procesar habilidades
-      pokemon.abilities = apiData.abilities.map((a) => ({
-        name: a.ability.name,
-        slot: a.slot,
-        isHidden: a.is_hidden,
-      }));
-
-      // Procesar estadísticas
-      pokemon.stats = apiData.stats.map((s) => ({
-        name: s.stat.name,
-        baseStat: s.base_stat,
-        effort: s.effort,
-      }));
-
-      return pokemon;
+      return this.mapApiDataToPokemon(apiData);
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(
-          `Error fetching Pokemon with id ${id}: ${error.message}`,
+          `Error fetching Pokemon with ${identifier}: ${error.message}`,
         );
       }
-      throw new Error(`Error fetching Pokemon with id ${id}: ${String(error)}`);
+      throw new Error(
+        `Error fetching Pokemon with ${identifier}: ${String(error)}`,
+      );
     }
+  }
+
+  private mapApiDataToPokemon(apiData: PokeApiPokemon): PokemonWithRelations {
+    const pokemon = new Pokemon({
+      id: apiData.id,
+      pokedexNumber: apiData.id,
+      name: apiData.name,
+      height: apiData.height,
+      weight: apiData.weight,
+      spriteUrl: apiData.sprites.front_default,
+      createdAt: new Date(),
+    }) as PokemonWithRelations;
+
+    pokemon.types = this.mapTypes(apiData.types);
+    pokemon.abilities = this.mapAbilities(apiData.abilities);
+    pokemon.stats = this.mapStats(apiData.stats);
+
+    return pokemon;
+  }
+
+  private mapTypes(
+    apiTypes: PokeApiType[],
+  ): Array<{ name: string; slot: number }> {
+    return apiTypes.map((t) => ({
+      name: t.type.name,
+      slot: t.slot,
+    }));
+  }
+
+  private mapAbilities(
+    apiAbilities: PokeApiAbility[],
+  ): Array<{ name: string; slot: number; isHidden: boolean }> {
+    return apiAbilities.map((a) => ({
+      name: a.ability.name,
+      slot: a.slot,
+      isHidden: a.is_hidden,
+    }));
+  }
+
+  private mapStats(
+    apiStats: PokeApiStat[],
+  ): Array<{ name: string; baseStat: number; effort: number }> {
+    return apiStats.map((s) => ({
+      name: s.stat.name,
+      baseStat: s.base_stat,
+      effort: s.effort,
+    }));
   }
 }

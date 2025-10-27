@@ -1,4 +1,3 @@
-// src/domain/pokemon/entities/pokemon.entity.ts
 import { ObjectType, Field, Int, GraphQLISODateTime } from '@nestjs/graphql';
 import { PokemonTypeEntity } from './pokemon-type.entity';
 import { PokemonAbilityEntity } from './pokemon-ability.entity';

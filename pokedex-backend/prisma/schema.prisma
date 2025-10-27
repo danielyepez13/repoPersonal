@@ -48,6 +48,8 @@ model Pokemon {
   stats         PokemonStat[]
   abilities     PokemonAbility[]
   teamPokemons  TeamPokemon[]
+
+  @@index([name])
 }
 
 model PokemonType {

@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Pokemon } from '../../../domain/pokemon/entities/pokemon.entity';
-import { PokemonRepository } from '../../../domain/pokemon/repositories/pokemon.repository';
+import { Pokemon } from '@/domain/pokemon/entities/pokemon.entity';
+import { PokemonRepository } from '@/domain/pokemon/repositories/pokemon.repository';
 import { PrismaService } from '../prisma.service';
-import type { PokemonWithRelations } from '../../../infrastructure/pokeapi/pokeapi.service';
+import { PokemonMapper } from '../mappers/pokemon.mapper';
+import type { PokemonWithRelations as ApiPokemonWithRelations } from '@/infrastructure/pokeapi/pokeapi.service';
 
 @Injectable()
 export class PrismaPokemonRepository implements PokemonRepository {
@@ -12,19 +13,12 @@ export class PrismaPokemonRepository implements PokemonRepository {
     try {
       const pokemon = await this.prisma.pokemon.findUnique({
         where: { pokedexNumber: id },
+        include: this.getPokemonInclude(),
       });
 
       if (!pokemon) return null;
 
-      return new Pokemon({
-        id: pokemon.id,
-        pokedexNumber: pokemon.pokedexNumber,
-        name: pokemon.name,
-        height: pokemon.height ?? undefined,
-        weight: pokemon.weight ?? undefined,
-        spriteUrl: pokemon.spriteUrl ?? undefined,
-        createdAt: pokemon.createdAt,
-      });
+      return PokemonMapper.toDomain(pokemon);
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -39,17 +33,10 @@ export class PrismaPokemonRepository implements PokemonRepository {
       const pokemons = await this.prisma.pokemon.findMany({
         where: { pokedexNumber: { in: ids } },
         orderBy: { pokedexNumber: 'asc' },
+        include: this.getPokemonInclude(),
       });
 
-      return pokemons.map((p) => ({
-        id: p.id,
-        pokedexNumber: p.pokedexNumber,
-        name: p.name,
-        height: p.height ?? undefined,
-        weight: p.weight ?? undefined,
-        spriteUrl: p.spriteUrl ?? undefined,
-        createdAt: p.createdAt,
-      }));
+      return PokemonMapper.toDomainArray(pokemons);
     } catch (error) {
       throw new Error(
         `Error finding Pokemons with ids ${ids.join(', ')}: ${error.message}`,
@@ -57,7 +44,26 @@ export class PrismaPokemonRepository implements PokemonRepository {
     }
   }
 
-  async save(pokemon: PokemonWithRelations): Promise<Pokemon> {
+  async findByName(name: string): Promise<Pokemon | null> {
+    try {
+      const pokemon = await this.prisma.pokemon.findFirst({
+        where: { name: { equals: name, mode: 'insensitive' } },
+        include: this.getPokemonInclude(),
+      });
+
+      if (!pokemon) return null;
+
+      return PokemonMapper.toDomain(pokemon);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error finding Pokemon by name';
+      throw new Error(message);
+    }
+  }
+
+  async save(pokemon: ApiPokemonWithRelations): Promise<Pokemon> {
     try {
       const saved = await this.prisma.pokemon.upsert({
         where: { pokedexNumber: pokemon.pokedexNumber },
@@ -91,15 +97,17 @@ export class PrismaPokemonRepository implements PokemonRepository {
         await this.saveStats(saved.id, pokemon.stats);
       }
 
-      return new Pokemon({
-        id: saved.id,
-        pokedexNumber: saved.pokedexNumber,
-        name: saved.name,
-        height: saved.height ?? undefined,
-        weight: saved.weight ?? undefined,
-        spriteUrl: saved.spriteUrl ?? undefined,
-        createdAt: saved.createdAt,
+      // Obtener el Pokemon con sus relaciones guardadas
+      const savedWithRelations = await this.prisma.pokemon.findUnique({
+        where: { id: saved.id },
+        include: this.getPokemonInclude(),
       });
+
+      if (!savedWithRelations) {
+        throw new Error('Failed to retrieve saved Pokemon');
+      }
+
+      return PokemonMapper.toDomain(savedWithRelations);
     } catch (error) {
       throw new Error(
         `Error saving Pokemon with id ${pokemon.pokedexNumber}: ${error.message}`,
@@ -118,12 +126,31 @@ export class PrismaPokemonRepository implements PokemonRepository {
 
     // Guardar nuevos tipos
     for (const type of types) {
-      // Obtener o crear el tipo
-      const typeRecord = await this.prisma.type.upsert({
+      // Obtener o crear el tipo de forma segura
+      let typeRecord = await this.prisma.type.findUnique({
         where: { name: type.name },
-        update: {},
-        create: { name: type.name },
       });
+
+      if (!typeRecord) {
+        try {
+          typeRecord = await this.prisma.type.create({
+            data: { name: type.name },
+          });
+        } catch (error: unknown) {
+          // Si falla porque ya existe (race condition), obtenerlo
+          if (
+            error instanceof Error &&
+            error.message.includes('Unique constraint failed')
+          ) {
+            typeRecord = await this.prisma.type.findUnique({
+              where: { name: type.name },
+            });
+            if (!typeRecord) throw error;
+          } else {
+            throw error;
+          }
+        }
+      }
 
       // Crear la relación
       await this.prisma.pokemonType.create({
@@ -147,12 +174,31 @@ export class PrismaPokemonRepository implements PokemonRepository {
 
     // Guardar nuevas habilidades
     for (const ability of abilities) {
-      // Obtener o crear la habilidad
-      const abilityRecord = await this.prisma.ability.upsert({
+      // Obtener o crear la habilidad de forma segura
+      let abilityRecord = await this.prisma.ability.findUnique({
         where: { name: ability.name },
-        update: {},
-        create: { name: ability.name },
       });
+
+      if (!abilityRecord) {
+        try {
+          abilityRecord = await this.prisma.ability.create({
+            data: { name: ability.name },
+          });
+        } catch (error: unknown) {
+          // Si falla porque ya existe (race condition), obtenerla
+          if (
+            error instanceof Error &&
+            error.message.includes('Unique constraint failed')
+          ) {
+            abilityRecord = await this.prisma.ability.findUnique({
+              where: { name: ability.name },
+            });
+            if (!abilityRecord) throw error;
+          } else {
+            throw error;
+          }
+        }
+      }
 
       // Crear la relación
       await this.prisma.pokemonAbility.create({
@@ -177,12 +223,31 @@ export class PrismaPokemonRepository implements PokemonRepository {
 
     // Guardar nuevas estadísticas
     for (const stat of stats) {
-      // Obtener o crear la estadística
-      const statRecord = await this.prisma.stat.upsert({
+      // Obtener o crear la estadística de forma segura
+      let statRecord = await this.prisma.stat.findUnique({
         where: { name: stat.name },
-        update: {},
-        create: { name: stat.name, sortOrder: 0 },
       });
+
+      if (!statRecord) {
+        try {
+          statRecord = await this.prisma.stat.create({
+            data: { name: stat.name, sortOrder: 0 },
+          });
+        } catch (error: unknown) {
+          // Si falla porque ya existe (race condition), obtenerla
+          if (
+            error instanceof Error &&
+            error.message.includes('Unique constraint failed')
+          ) {
+            statRecord = await this.prisma.stat.findUnique({
+              where: { name: stat.name },
+            });
+            if (!statRecord) throw error;
+          } else {
+            throw error;
+          }
+        }
+      }
 
       // Crear la relación
       await this.prisma.pokemonStat.create({
@@ -194,5 +259,48 @@ export class PrismaPokemonRepository implements PokemonRepository {
         },
       });
     }
+  }
+
+  async searchByName(
+    query: string,
+    limit: number,
+    offset: number,
+  ): Promise<Pokemon[]> {
+    try {
+      const pokemons = await this.prisma.pokemon.findMany({
+        where: {
+          name: {
+            contains: query,
+            mode: 'insensitive',
+          },
+        },
+        orderBy: { pokedexNumber: 'asc' },
+        take: limit,
+        skip: offset,
+        include: this.getPokemonInclude(),
+      });
+
+      return PokemonMapper.toDomainArray(pokemons);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unknown error searching Pokemons by name';
+      throw new Error(message);
+    }
+  }
+
+  private getPokemonInclude() {
+    return {
+      types: {
+        include: { type: true },
+      },
+      abilities: {
+        include: { ability: true },
+      },
+      stats: {
+        include: { stat: true },
+      },
+    };
   }
 }
