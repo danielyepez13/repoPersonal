@@ -97,6 +97,11 @@ export class PrismaPokemonRepository implements PokemonRepository {
         await this.saveStats(saved.id, pokemon.stats);
       }
 
+      // Guardar movimientos si existen
+      if (pokemon.moves && pokemon.moves.length > 0) {
+        await this.saveMoves(saved.id, pokemon.moves);
+      }
+
       // Obtener el Pokemon con sus relaciones guardadas
       const savedWithRelations = await this.prisma.pokemon.findUnique({
         where: { id: saved.id },
@@ -290,6 +295,91 @@ export class PrismaPokemonRepository implements PokemonRepository {
     }
   }
 
+  private async saveMoves(
+    pokemonId: number,
+    moves: Array<{
+      name: string;
+      power?: number;
+      pp?: number;
+      priority?: number;
+      accuracy?: number;
+      type: { name: string };
+    }>,
+  ): Promise<void> {
+    // Eliminar movimientos existentes
+    await this.prisma.pokemonMove.deleteMany({
+      where: { pokemonId },
+    });
+
+    // Guardar nuevos movimientos
+    for (const move of moves) {
+      // Obtener o crear el tipo del movimiento
+      let typeRecord = await this.prisma.type.findUnique({
+        where: { name: move.type.name },
+      });
+
+      if (!typeRecord) {
+        try {
+          typeRecord = await this.prisma.type.create({
+            data: { name: move.type.name },
+          });
+        } catch (error: unknown) {
+          if (
+            error instanceof Error &&
+            error.message.includes('Unique constraint failed')
+          ) {
+            typeRecord = await this.prisma.type.findUnique({
+              where: { name: move.type.name },
+            });
+            if (!typeRecord) throw error;
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      // Obtener o crear el movimiento
+      let moveRecord = await this.prisma.move.findUnique({
+        where: { name: move.name },
+      });
+
+      if (!moveRecord) {
+        try {
+          moveRecord = await this.prisma.move.create({
+            data: {
+              name: move.name,
+              power: move.power,
+              pp: move.pp,
+              priority: move.priority,
+              accuracy: move.accuracy,
+              typeId: typeRecord.id,
+            },
+          });
+        } catch (error: unknown) {
+          if (
+            error instanceof Error &&
+            error.message.includes('Unique constraint failed')
+          ) {
+            moveRecord = await this.prisma.move.findUnique({
+              where: { name: move.name },
+            });
+            if (!moveRecord) throw error;
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      // Crear la relación
+      await this.prisma.pokemonMove.create({
+        data: {
+          pokemonId,
+          moveId: moveRecord.id,
+        },
+      });
+    }
+  }
+
   private getPokemonInclude() {
     return {
       types: {
@@ -300,6 +390,13 @@ export class PrismaPokemonRepository implements PokemonRepository {
       },
       stats: {
         include: { stat: true },
+      },
+      moves: {
+        include: {
+          move: {
+            include: { type: true },
+          },
+        },
       },
     };
   }

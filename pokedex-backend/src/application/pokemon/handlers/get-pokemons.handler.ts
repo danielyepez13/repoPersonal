@@ -32,7 +32,9 @@ export class GetPokemonsHandler {
         !p.abilities ||
         p.abilities.length === 0 ||
         !p.stats ||
-        p.stats.length === 0,
+        p.stats.length === 0 ||
+        !p.moves ||
+        p.moves.length === 0,
     );
     const pokemonsWithCompleteRelations = existingPokemons.filter(
       (p) =>
@@ -41,7 +43,9 @@ export class GetPokemonsHandler {
         p.abilities &&
         p.abilities.length > 0 &&
         p.stats &&
-        p.stats.length > 0,
+        p.stats.length > 0 &&
+        p.moves &&
+        p.moves.length > 0,
     );
 
     // Buscar los que faltan en la PokeAPI y guardarlos

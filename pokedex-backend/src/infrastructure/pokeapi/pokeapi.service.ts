@@ -28,6 +28,24 @@ interface PokeApiStat {
   };
 }
 
+interface PokeApiMove {
+  move: {
+    name: string;
+    url: string;
+  };
+  version_group_details: Array<{
+    level_learned_at: number;
+    move_learn_method: {
+      name: string;
+      url: string;
+    };
+    version_group: {
+      name: string;
+      url: string;
+    };
+  }>;
+}
+
 interface PokeApiPokemon {
   id: number;
   name: string;
@@ -37,6 +55,7 @@ interface PokeApiPokemon {
   types: PokeApiType[];
   abilities: PokeApiAbility[];
   stats: PokeApiStat[];
+  moves: PokeApiMove[];
 }
 
 export interface PokemonWithRelations {
@@ -50,6 +69,14 @@ export interface PokemonWithRelations {
   types?: Array<{ name: string; slot: number }>;
   abilities?: Array<{ name: string; slot: number; isHidden: boolean }>;
   stats?: Array<{ name: string; baseStat: number; effort: number }>;
+  moves?: Array<{
+    name: string;
+    power?: number;
+    pp?: number;
+    priority?: number;
+    accuracy?: number;
+    type: { id?: number; name: string };
+  }>;
 }
 
 @Injectable()
@@ -76,7 +103,7 @@ export class PokeApiService {
         await axios.get<PokeApiPokemon>(url);
       const apiData: PokeApiPokemon = response.data;
 
-      return this.mapApiDataToPokemon(apiData);
+      return await this.mapApiDataToPokemon(apiData);
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(
@@ -89,7 +116,9 @@ export class PokeApiService {
     }
   }
 
-  private mapApiDataToPokemon(apiData: PokeApiPokemon): PokemonWithRelations {
+  private async mapApiDataToPokemon(
+    apiData: PokeApiPokemon,
+  ): Promise<PokemonWithRelations> {
     const pokemon = new Pokemon({
       id: apiData.id,
       pokedexNumber: apiData.id,
@@ -103,6 +132,7 @@ export class PokeApiService {
     pokemon.types = this.mapTypes(apiData.types);
     pokemon.abilities = this.mapAbilities(apiData.abilities);
     pokemon.stats = this.mapStats(apiData.stats);
+    pokemon.moves = await this.mapMoves(apiData.moves);
 
     return pokemon;
   }
@@ -134,5 +164,80 @@ export class PokeApiService {
       baseStat: s.base_stat,
       effort: s.effort,
     }));
+  }
+
+  private async mapMoves(apiMoves: PokeApiMove[]): Promise<
+    Array<{
+      name: string;
+      power?: number;
+      pp?: number;
+      priority?: number;
+      accuracy?: number;
+      type: { name: string };
+    }>
+  > {
+    // Obtener solo los movimientos únicos (por nombre)
+    const uniqueMoveNames = new Set<string>();
+    const uniqueApiMoves: PokeApiMove[] = [];
+
+    for (const apiMove of apiMoves) {
+      if (!uniqueMoveNames.has(apiMove.move.name)) {
+        uniqueMoveNames.add(apiMove.move.name);
+        uniqueApiMoves.push(apiMove);
+      }
+    }
+
+    // Obtener detalles de los movimientos en paralelo
+    const moveDetailsPromises = uniqueApiMoves.map((move) =>
+      this.fetchMoveDetails(move.move.name).catch(() => ({
+        name: move.move.name,
+        type: { name: 'normal' }, // Valor por defecto si falla la llamada
+      })),
+    );
+
+    const moveDetails = await Promise.all(moveDetailsPromises);
+
+    return moveDetails;
+  }
+
+  async fetchMoveDetails(moveName: string): Promise<{
+    name: string;
+    power?: number;
+    pp?: number;
+    priority?: number;
+    accuracy?: number;
+    type: { name: string };
+  }> {
+    try {
+      const response: AxiosResponse<{
+        id: number;
+        name: string;
+        power: number | null;
+        pp: number | null;
+        priority: number;
+        accuracy: number | null;
+        type: { name: string; url: string };
+      }> = await axios.get(`${this.baseUrl}/move/${moveName}`);
+
+      const moveData = response.data;
+
+      return {
+        name: moveData.name,
+        power: moveData.power ?? undefined,
+        pp: moveData.pp ?? undefined,
+        priority: moveData.priority ?? undefined,
+        accuracy: moveData.accuracy ?? undefined,
+        type: { name: moveData.type.name },
+      };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(
+          `Error fetching move details for ${moveName}: ${error.message}`,
+        );
+      }
+      throw new Error(
+        `Error fetching move details for ${moveName}: ${String(error)}`,
+      );
+    }
   }
 }

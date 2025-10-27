@@ -2,6 +2,7 @@ import { ObjectType, Field, Int, GraphQLISODateTime } from '@nestjs/graphql';
 import { PokemonTypeEntity } from './pokemon-type.entity';
 import { PokemonAbilityEntity } from './pokemon-ability.entity';
 import { PokemonStatEntity } from './pokemon-stat.entity';
+import { PokemonMoveEntity } from './pokemon-move.entity';
 
 @ObjectType()
 export class Pokemon {
@@ -34,6 +35,9 @@ export class Pokemon {
 
   @Field(() => [PokemonStatEntity], { nullable: true })
   stats?: PokemonStatEntity[];
+
+  @Field(() => [PokemonMoveEntity], { nullable: true })
+  moves?: PokemonMoveEntity[];
 
   // Constructor opcional para inicializar desde el dominio
   constructor(partial?: Partial<Pokemon>) {

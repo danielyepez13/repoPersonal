@@ -18,6 +18,7 @@ model Type {
   id    Int      @id @default(autoincrement())
   name  String   @unique
   pokemons PokemonType[]
+  moves Move[]
   attacker TypeEffectiveness[] @relation("AttackerType")
   defender TypeEffectiveness[] @relation("DefenderType")
 }
@@ -36,6 +37,20 @@ model Ability {
   pokemonAbilities PokemonAbility[]
 }
 
+model Move {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  power        Int?
+  pp           Int?
+  priority     Int?
+  accuracy     Int?
+  type         Type     @relation(fields: [typeId], references: [id])
+  typeId       Int
+  pokemonMoves PokemonMove[]
+
+  @@index([name])
+}
+
 model Pokemon {
   id            Int      @id @default(autoincrement())
   pokedexNumber Int      @unique
@@ -47,6 +62,7 @@ model Pokemon {
   types         PokemonType[]
   stats         PokemonStat[]
   abilities     PokemonAbility[]
+  moves         PokemonMove[]
   teamPokemons  TeamPokemon[]
 
   @@index([name])
@@ -81,6 +97,17 @@ model PokemonAbility {
   isHidden  Boolean @default(false)
   @@id([pokemonId, slot])
   @@unique([pokemonId, abilityId])
+}
+
+model PokemonMove {
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+  move      Move    @relation(fields: [moveId], references: [id])
+  moveId    Int
+  levelLearnedAt Int?
+  moveLearnMethod String? // "level-up", "machine", "tutor", etc.
+  @@id([pokemonId, moveId])
+  @@unique([pokemonId, moveId])
 }
 
 model Team {

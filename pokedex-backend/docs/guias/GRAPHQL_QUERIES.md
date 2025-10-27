@@ -211,6 +211,73 @@ query {
 
 ---
 
+## Query completo: Obtener Pokémon con movimientos
+
+```graphql
+query {
+  pokemons(page: 1, limit: 5) {
+    id
+    pokedexNumber
+    name
+    moves {
+      name
+      power
+      pp
+      priority
+      accuracy
+      type {
+        name
+      }
+      levelLearnedAt
+      moveLearnMethod
+    }
+  }
+}
+```
+
+**Respuesta esperada:**
+```json
+{
+  "data": {
+    "pokemons": [
+      {
+        "id": 1,
+        "pokedexNumber": 1,
+        "name": "bulbasaur",
+        "moves": [
+          {
+            "name": "razor-wind",
+            "power": 80,
+            "pp": 10,
+            "priority": 0,
+            "accuracy": 100,
+            "type": {
+              "name": "normal"
+            },
+            "levelLearnedAt": null,
+            "moveLearnMethod": "level-up"
+          },
+          {
+            "name": "swords-dance",
+            "power": null,
+            "pp": 20,
+            "priority": 0,
+            "accuracy": null,
+            "type": {
+              "name": "normal"
+            },
+            "levelLearnedAt": null,
+            "moveLearnMethod": "level-up"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## Query MEGA: Obtener Pokémon con TODAS las relaciones
 
 ```graphql
@@ -239,6 +306,16 @@ query {
       name
       baseStat
       effort
+    }
+    moves {
+      name
+      power
+      pp
+      priority
+      accuracy
+      type {
+        name
+      }
     }
   }
 }
@@ -320,6 +397,28 @@ query {
             "baseStat": 45,
             "effort": 0
           }
+        ],
+        "moves": [
+          {
+            "name": "razor-wind",
+            "power": 80,
+            "pp": 10,
+            "priority": 0,
+            "accuracy": 100,
+            "type": {
+              "name": "normal"
+            }
+          },
+          {
+            "name": "swords-dance",
+            "power": null,
+            "pp": 20,
+            "priority": 0,
+            "accuracy": null,
+            "type": {
+              "name": "normal"
+            }
+          }
         ]
       },
       {
@@ -393,6 +492,28 @@ query {
             "baseStat": 60,
             "effort": 0
           }
+        ],
+        "moves": [
+          {
+            "name": "razor-wind",
+            "power": 80,
+            "pp": 10,
+            "priority": 0,
+            "accuracy": 100,
+            "type": {
+              "name": "normal"
+            }
+          },
+          {
+            "name": "swords-dance",
+            "power": null,
+            "pp": 20,
+            "priority": 0,
+            "accuracy": null,
+            "type": {
+              "name": "normal"
+            }
+          }
         ]
       }
     ]
@@ -406,13 +527,12 @@ query {
 
 - **page** (requerido): Número de página (comienza en 1)
 - **limit** (opcional, default: 10): Cantidad de Pokémon por página
-- **offset** (opcional, default: 0): Desplazamiento adicional
 
 ### Ejemplo con parámetros personalizados:
 
 ```graphql
 query {
-  pokemons(page: 2, limit: 20, offset: 5) {
+  pokemons(page: 2, limit: 20) {
     id
     pokedexNumber
     name
@@ -424,35 +544,12 @@ query {
 
 ## Notas importantes
 
-1. **Búsqueda automática en PokeAPI**: Si un Pokémon no existe en la BD, se busca automáticamente en la PokeAPI y se guarda con todas sus relaciones.
+1. **Búsqueda automática en PokeAPI**: Si un Pokémon no existe en la BD, se busca automáticamente en la PokeAPI y se guarda con todas sus relaciones (tipos, habilidades, estadísticas y movimientos).
 
-2. **Relaciones opcionales**: Los campos `types`, `abilities` y `stats` son opcionales. Puedes solicitar solo los que necesites.
+2. **Relaciones incluidas**: Los campos `types`, `abilities`, `stats` y `moves` están disponibles en todos los queries. Puedes solicitar solo los que necesites.
 
 3. **Campos anidados**: Cada relación tiene sus propios campos que puedes seleccionar.
 
 4. **Ordenamiento**: Los resultados se devuelven ordenados por `pokedexNumber` de forma ascendente.
 
-buscar por nombre:
-
-query {
-  pokemon(name: "bulbasaur") {
-    id
-    name
-    types { name slot }
-    abilities { name slot isHidden }
-    stats { name baseStat }
-  }
-}
-
-buscar varios por nombre:
-
-query {
-  searchPokemons(query: "bu", limit: 10, offset: 0) {
-    id
-    pokedexNumber
-    name
-    types { name slot }
-    abilities { name slot }
-    stats { name baseStat }
-  }
-}
+5. **Movimientos**: Se obtienen automáticamente desde PokeAPI con detalles completos (power, pp, priority, accuracy, type).

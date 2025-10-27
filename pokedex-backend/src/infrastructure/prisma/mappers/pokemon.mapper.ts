@@ -16,6 +16,19 @@ export interface PokemonWithRelations extends PrismaPokemon {
     baseStat: number;
     effort: number;
   }>;
+  moves: Array<{
+    move: {
+      id: number;
+      name: string;
+      power: number | null;
+      pp: number | null;
+      priority: number | null;
+      accuracy: number | null;
+      type: { id: number; name: string };
+    };
+    levelLearnedAt: number | null;
+    moveLearnMethod: string | null;
+  }>;
 }
 
 export class PokemonMapper {
@@ -32,6 +45,7 @@ export class PokemonMapper {
       types: this.mapTypes(pokemon.types),
       abilities: this.mapAbilities(pokemon.abilities),
       stats: this.mapStats(pokemon.stats),
+      moves: this.mapMoves(pokemon.moves),
     });
   }
 
@@ -55,6 +69,11 @@ export class PokemonMapper {
       !Array.isArray(pokemon.stats)
     ) {
       throw new Error('Pokemon data is missing required fields');
+    }
+
+    // Validar que moves sea un array si existe
+    if (pokemon.moves && !Array.isArray(pokemon.moves)) {
+      throw new Error('Pokemon moves must be an array');
     }
 
     return pokemon;
@@ -104,5 +123,39 @@ export class PokemonMapper {
           effort: ps.effort,
         }))
       : undefined;
+  }
+
+  private static mapMoves(
+    moves?: Array<{
+      move: {
+        id: number;
+        name: string;
+        power: number | null;
+        pp: number | null;
+        priority: number | null;
+        accuracy: number | null;
+        type: { id: number; name: string };
+      };
+      levelLearnedAt: number | null;
+      moveLearnMethod: string | null;
+    }>,
+  ) {
+    if (!moves || moves.length === 0) {
+      return undefined;
+    }
+
+    return moves.map((pm) => ({
+      name: pm.move.name,
+      power: pm.move.power ?? undefined,
+      pp: pm.move.pp ?? undefined,
+      priority: pm.move.priority ?? undefined,
+      accuracy: pm.move.accuracy ?? undefined,
+      type: {
+        id: pm.move.type.id,
+        name: pm.move.type.name,
+      },
+      levelLearnedAt: pm.levelLearnedAt ?? undefined,
+      moveLearnMethod: pm.moveLearnMethod ?? undefined,
+    }));
   }
 }
