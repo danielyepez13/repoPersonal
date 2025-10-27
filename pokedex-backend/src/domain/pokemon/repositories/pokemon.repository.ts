@@ -28,4 +28,13 @@ export interface PokemonRepository {
     limit: number,
     offset: number,
   ): Promise<AbilityWithPokemons[]>;
+  createTeam(data: any): Promise<any>;
+  getTeamById(teamId: number): Promise<any>;
+  updateTeam(teamId: number, data: any): Promise<any>;
+  deleteTeam(teamId: number): Promise<void>;
+  listTeams(limit: number, offset: number): Promise<any[]>;
+  findNatureById(id: number): Promise<any>;
+  saveNature(nature: any): Promise<any>;
+  findItemById(id: number): Promise<any>;
+  saveItem(item: any): Promise<any>;
 }

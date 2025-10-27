@@ -1,11 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { PokemonRepository } from '@/domain/pokemon/repositories/pokemon.repository';
 import { SearchAbilitiesQuery } from '../queries/search-abilities.query';
 import type { AbilityWithPokemons } from '@/domain/pokemon/entities/ability-with-pokemons.entity';
 
 @Injectable()
 export class SearchAbilitiesHandler {
-  constructor(private readonly pokemonRepository: PokemonRepository) {}
+  constructor(
+    @Inject('PokemonRepository')
+    private readonly pokemonRepository: PokemonRepository,
+  ) {}
 
   async execute(input: SearchAbilitiesQuery): Promise<AbilityWithPokemons[]> {
     const page = input.page || 1;

@@ -118,14 +118,33 @@ model Team {
   pokemons  TeamPokemon[]
 }
 
+model Nature {
+  id              Int      @id
+  name            String   @unique
+  decreasedStat   String
+  increasedStat   String
+  teamPokemons    TeamPokemon[]
+}
+
+model Item {
+  id              Int      @id
+  name            String   @unique
+  sprite          String?
+  teamPokemons    TeamPokemon[]
+}
+
 model TeamPokemon {
-  team      Team    @relation(fields: [teamId], references: [id])
-  teamId    Int
-  slot      Int
-  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
-  pokemonId Int
-  nickname  String?
-  level     Int     @default(100)
+  team            Team     @relation(fields: [teamId], references: [id])
+  teamId          Int
+  slot            Int
+  pokemon         Pokemon  @relation(fields: [pokemonId], references: [id])
+  pokemonId       Int
+  nickname        String?
+  level           Int      @default(100)
+  nature          Nature?  @relation(fields: [natureId], references: [id])
+  natureId        Int?
+  item            Item?    @relation(fields: [itemId], references: [id])
+  itemId          Int?
   @@id([teamId, slot])
 }
 

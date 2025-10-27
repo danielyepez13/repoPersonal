@@ -323,11 +323,206 @@ export class PrismaPokemonRepository implements PokemonRepository {
       (ability) => ({
         id: ability.id,
         name: ability.name,
+        description: ability.description,
         pokemons: PrismaPokemonHelpers.mapPokemonsFromRelations(
           ability.pokemonAbilities.map((pa) => pa.pokemon),
         ),
       }),
       'searching abilities',
     );
+  }
+
+  async findNatureById(id: number): Promise<any> {
+    try {
+      return await this.prisma.nature.findUnique({
+        where: { id },
+      });
+    } catch (error) {
+      console.error(`Error finding nature ${id}:`, error);
+      return null;
+    }
+  }
+
+  async saveNature(nature: any): Promise<any> {
+    try {
+      return await this.prisma.nature.upsert({
+        where: { id: nature.id },
+        update: nature,
+        create: nature,
+      });
+    } catch (error) {
+      console.error(`Error saving nature ${nature.id}:`, error);
+      throw error;
+    }
+  }
+
+  async findItemById(id: number): Promise<any> {
+    try {
+      return await this.prisma.item.findUnique({
+        where: { id },
+      });
+    } catch (error) {
+      console.error(`Error finding item ${id}:`, error);
+      return null;
+    }
+  }
+
+  async saveItem(item: any): Promise<any> {
+    try {
+      return await this.prisma.item.upsert({
+        where: { id: item.id },
+        update: item,
+        create: item,
+      });
+    } catch (error) {
+      console.error(`Error saving item ${item.id}:`, error);
+      throw error;
+    }
+  }
+
+  async createTeam(data: any): Promise<any> {
+    try {
+      const team = await this.prisma.team.create({
+        data: {
+          ownerId: data.ownerId,
+          name: data.name,
+        },
+      });
+
+      // Crear relaciones TeamPokemon
+      for (const pokemon of data.pokemons) {
+        await this.prisma.teamPokemon.create({
+          data: {
+            teamId: team.id,
+            pokemonId: pokemon.pokemonId,
+            slot: pokemon.slot,
+            nickname: pokemon.nickname,
+            level: pokemon.level || 100,
+            natureId: pokemon.natureId,
+            itemId: pokemon.itemId,
+          },
+        });
+      }
+
+      return await this.getTeamById(team.id);
+    } catch (error) {
+      console.error('Error creating team:', error);
+      throw error;
+    }
+  }
+
+  async getTeamById(teamId: number): Promise<any> {
+    try {
+      return await this.prisma.team.findUnique({
+        where: { id: teamId },
+        include: {
+          pokemons: {
+            include: {
+              pokemon: {
+                include: {
+                  types: { include: { type: true } },
+                  abilities: { include: { ability: true } },
+                  stats: { include: { stat: true } },
+                  moves: { include: { move: { include: { type: true } } } },
+                },
+              },
+              nature: true,
+              item: true,
+            },
+            orderBy: { slot: 'asc' },
+          },
+        },
+      });
+    } catch (error) {
+      console.error(`Error getting team ${teamId}:`, error);
+      return null;
+    }
+  }
+
+  async updateTeam(teamId: number, data: any): Promise<any> {
+    try {
+      // Actualizar nombre del equipo si se proporciona
+      if (data.name) {
+        await this.prisma.team.update({
+          where: { id: teamId },
+          data: { name: data.name },
+        });
+      }
+
+      // Si se proporcionan Pokémon, actualizar relaciones
+      if (data.pokemons && data.pokemons.length > 0) {
+        // Eliminar Pokémon existentes
+        await this.prisma.teamPokemon.deleteMany({
+          where: { teamId },
+        });
+
+        // Crear nuevas relaciones
+        for (const pokemon of data.pokemons) {
+          await this.prisma.teamPokemon.create({
+            data: {
+              teamId,
+              pokemonId: pokemon.pokemonId,
+              slot: pokemon.slot,
+              nickname: pokemon.nickname,
+              level: pokemon.level || 100,
+              natureId: pokemon.natureId,
+              itemId: pokemon.itemId,
+            },
+          });
+        }
+      }
+
+      return await this.getTeamById(teamId);
+    } catch (error) {
+      console.error(`Error updating team ${teamId}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteTeam(teamId: number): Promise<void> {
+    try {
+      // Eliminar Pokémon del equipo
+      await this.prisma.teamPokemon.deleteMany({
+        where: { teamId },
+      });
+
+      // Eliminar equipo
+      await this.prisma.team.delete({
+        where: { id: teamId },
+      });
+    } catch (error) {
+      console.error(`Error deleting team ${teamId}:`, error);
+      throw error;
+    }
+  }
+
+  async listTeams(limit: number, offset: number): Promise<any[]> {
+    try {
+      return await this.prisma.team.findMany({
+        include: {
+          pokemons: {
+            include: {
+              pokemon: {
+                include: {
+                  types: { include: { type: true } },
+                  abilities: { include: { ability: true } },
+                  stats: { include: { stat: true } },
+                  moves: { include: { move: { include: { type: true } } } },
+                },
+              },
+              nature: true,
+              item: true,
+            },
+            orderBy: { slot: 'asc' },
+          },
+        },
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      console.error('Error listing teams:', error);
+      throw error;
+    }
   }
 }

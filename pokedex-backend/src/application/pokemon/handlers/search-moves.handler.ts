@@ -1,11 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { PokemonRepository } from '@/domain/pokemon/repositories/pokemon.repository';
 import { SearchMovesQuery } from '../queries/search-moves.query';
 import type { MoveWithPokemons } from '@/domain/pokemon/entities/move-with-pokemons.entity';
 
 @Injectable()
 export class SearchMovesHandler {
-  constructor(private readonly pokemonRepository: PokemonRepository) {}
+  constructor(
+    @Inject('PokemonRepository')
+    private readonly pokemonRepository: PokemonRepository,
+  ) {}
 
   async execute(input: SearchMovesQuery): Promise<MoveWithPokemons[]> {
     const page = input.page || 1;
