@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:1234@localhost:5432/pokedex?schema=public"
+}
+
+model Type {
+  id    Int      @id @default(autoincrement())
+  name  String   @unique
+  pokemons PokemonType[]
+  attacker TypeEffectiveness[] @relation("AttackerType")
+  defender TypeEffectiveness[] @relation("DefenderType")
+}
+
+model Stat {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  sortOrder Int
+  pokemonStats PokemonStat[]
+}
+
+model Ability {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  pokemonAbilities PokemonAbility[]
+}
+
+model Pokemon {
+  id            Int      @id @default(autoincrement())
+  pokedexNumber Int      @unique
+  name          String
+  height        Int?
+  weight        Int?
+  spriteUrl     String?
+  createdAt     DateTime @default(now())
+  types         PokemonType[]
+  stats         PokemonStat[]
+  abilities     PokemonAbility[]
+  teamPokemons  TeamPokemon[]
+}
+
+model PokemonType {
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+  type      Type    @relation(fields: [typeId], references: [id])
+  typeId    Int
+  slot      Int
+  @@id([pokemonId, slot])
+  @@unique([pokemonId, typeId])
+}
+
+model PokemonStat {
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+  stat      Stat    @relation(fields: [statId], references: [id])
+  statId    Int
+  baseStat  Int
+  effort    Int     @default(0)
+  @@id([pokemonId, statId])
+}
+
+model PokemonAbility {
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+  ability   Ability @relation(fields: [abilityId], references: [id])
+  abilityId Int
+  slot      Int
+  isHidden  Boolean @default(false)
+  @@id([pokemonId, slot])
+  @@unique([pokemonId, abilityId])
+}
+
+model Team {
+  id        Int           @id @default(autoincrement())
+  ownerId   Int?
+  name      String?
+  createdAt DateTime      @default(now())
+  pokemons  TeamPokemon[]
+}
+
+model TeamPokemon {
+  team      Team    @relation(fields: [teamId], references: [id])
+  teamId    Int
+  slot      Int
+  pokemon   Pokemon @relation(fields: [pokemonId], references: [id])
+  pokemonId Int
+  nickname  String?
+  level     Int     @default(100)
+  @@id([teamId, slot])
+}
+
+model TypeEffectiveness {
+  attackerType   Type  @relation("AttackerType", fields: [attackerTypeId], references: [id])
+  attackerTypeId Int
+  defenderType   Type  @relation("DefenderType", fields: [defenderTypeId], references: [id])
+  defenderTypeId Int
+  multiplier     Float
+  @@id([attackerTypeId, defenderTypeId])
+}
