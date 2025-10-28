@@ -259,6 +259,70 @@ query { searchAbilities(query: "overgrow", page: 2, limit: 10) { name } }
 
 ---
 
+## Obtener Detalles de un Movimiento
+
+### Query: moveById
+
+Obtiene detalles completos de un movimiento incluyendo todos los Pokémon que lo aprenden.
+
+```graphql
+query {
+  moveById(id: 1) {
+    id
+    name
+    power
+    pp
+    priority
+    accuracy
+    category
+    type {
+      id
+      name
+    }
+    pokemons {
+      id
+      pokedexNumber
+      name
+      spriteUrl
+      types {
+        name
+        slot
+      }
+      abilities {
+        name
+        slot
+        isHidden
+      }
+      stats {
+        name
+        baseStat
+      }
+    }
+  }
+}
+```
+
+**Parámetros:**
+- `id` (requerido): ID del movimiento
+
+**Ejemplos:**
+```graphql
+# Obtener detalles del movimiento "Tackle" (ID: 1)
+query { moveById(id: 1) { name power category type { name } pokemons { name } } }
+
+# Obtener movimiento con todos los detalles
+query { moveById(id: 1) { name power pp accuracy category type { name } pokemons { name types { name } } } }
+```
+
+**Características:**
+- Retorna detalles completos del movimiento: power, pp, priority, accuracy, category
+- Retorna tipo del movimiento
+- Retorna lista de Pokémon que aprenden el movimiento
+- Cada Pokémon incluye tipos, habilidades y estadísticas
+- Pokémon ordenados por pokedexNumber
+
+---
+
 ## Resumen de Búsquedas
 
 | Query | Tipo | Busca | Retorna |
@@ -266,6 +330,7 @@ query { searchAbilities(query: "overgrow", page: 2, limit: 10) { name } }
 | `pokemonById` | Query | Pokémon por ID | Pokémon con relaciones |
 | `pokemon` | Query | Pokémon por nombre exacto | Pokémon con relaciones |
 | `searchPokemons` | Query | Pokémon por nombre parcial | Pokémon con relaciones |
+| **`moveById`** | **Query** | **Movimiento por ID** | **Movimiento + Pokémon** |
 | `searchMoves` | Query | Movimientos por nombre | Movimientos + Pokémon |
 | `searchTypes` | Query | Tipos por nombre | Tipos + Pokémon |
 | `searchAbilities` | Query | Habilidades por nombre | Habilidades + Pokémon |

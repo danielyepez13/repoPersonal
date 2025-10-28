@@ -17,6 +17,18 @@ export class PrismaPokemonHelpers {
     };
   }
 
+  /**
+   * Returns the include object for Pokemon without moves (for list views).
+   * Includes only types and abilities for faster loading.
+   */
+  static getPokemonIncludeWithoutMoves() {
+    return {
+      types: { include: { type: true } },
+      abilities: { include: { ability: true } },
+      stats: { include: { stat: true } },
+    };
+  }
+
   static async findPokemonSafe<T>(
     /**
      * Function that returns a Promise of a Pokemon entity.

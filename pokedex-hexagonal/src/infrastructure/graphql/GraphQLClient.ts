@@ -97,18 +97,22 @@ export class GraphQLPokemonClient {
    * Obtiene los movimientos de un pokémon específico por ID (pokedexNumber)
    * Método separado para lazy loading
    * Usa query pokemonById(id: Int!) donde id es el pokedexNumber
+   * Incluye pokeApiId para lazy loading de detalles del movimiento
    */
   async getPokemonMoves(id: number): Promise<any[]> {
     const query = gql`
       query GetPokemonMoves($id: Int!) {
         pokemonById(id: $id) {
           moves {
+            id
+            pokeApiId
             name
             power
             pp
             priority
             accuracy
             type {
+              id
               name
             }
             levelLearnedAt
@@ -127,6 +131,74 @@ export class GraphQLPokemonClient {
     }
 
     return response.pokemonById.moves || [];
+  }
+
+  /**
+   * Obtiene detalles de un movimiento específico por ID
+   * Incluye pokémon relacionados para lazy loading
+   * Usa query moveById(id: Int!) donde id es el pokeApiId
+   */
+  async getMoveById(id: number): Promise<any> {
+    const query = gql`
+      query GetMoveById($id: Int!) {
+        moveById(id: $id) {
+          id
+          pokeApiId
+          name
+          power
+          pp
+          priority
+          accuracy
+          type {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const response = await this.client.request(query, {
+      id,
+    });
+
+    if (!response.moveById) {
+      throw new Error(`Move with id ${id} not found`);
+    }
+
+    return response.moveById;
+  }
+
+  /**
+   * Obtiene los pokémon que aprenden un movimiento específico
+   * Método separado para lazy loading de pokémon relacionados
+   * Usa query moveById(id: Int!) donde id es el pokeApiId
+   */
+  async getMovePokemon(id: number): Promise<any[]> {
+    const query = gql`
+      query GetMovePokemon($id: Int!) {
+        moveById(id: $id) {
+          pokemons {
+            id
+            pokedexNumber
+            name
+            height
+            weight
+            spriteUrl
+            createdAt
+          }
+        }
+      }
+    `;
+
+    const response = await this.client.request(query, {
+      id,
+    });
+
+    if (!response.moveById) {
+      throw new Error(`Move with id ${id} not found`);
+    }
+
+    return response.moveById.pokemons || [];
   }
 
   /**

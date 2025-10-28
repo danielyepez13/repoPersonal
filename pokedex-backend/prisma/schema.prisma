@@ -39,11 +39,13 @@ model Ability {
 
 model Move {
   id           Int      @id @default(autoincrement())
+  pokeApiId    Int      @unique // ID de PokeAPI (diferente al id de BD)
   name         String   @unique
   power        Int?
   pp           Int?
   priority     Int?
   accuracy     Int?
+  category     String   @default("status") // 'physical', 'special', 'status'
   type         Type     @relation(fields: [typeId], references: [id])
   typeId       Int
   pokemonMoves PokemonMove[]

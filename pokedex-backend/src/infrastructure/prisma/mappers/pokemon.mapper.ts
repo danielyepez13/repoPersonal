@@ -16,9 +16,10 @@ export interface PokemonWithRelations extends PrismaPokemon {
     baseStat: number;
     effort: number;
   }>;
-  moves: Array<{
+  moves?: Array<{
     move: {
       id: number;
+      pokeApiId?: number;
       name: string;
       power: number | null;
       pp: number | null;
@@ -129,6 +130,7 @@ export class PokemonMapper {
     moves?: Array<{
       move: {
         id: number;
+        pokeApiId?: number;
         name: string;
         power: number | null;
         pp: number | null;
@@ -144,18 +146,25 @@ export class PokemonMapper {
       return undefined;
     }
 
-    return moves.map((pm) => ({
-      name: pm.move.name,
-      power: pm.move.power ?? undefined,
-      pp: pm.move.pp ?? undefined,
-      priority: pm.move.priority ?? undefined,
-      accuracy: pm.move.accuracy ?? undefined,
-      type: {
-        id: pm.move.type.id,
-        name: pm.move.type.name,
-      },
-      levelLearnedAt: pm.levelLearnedAt ?? undefined,
-      moveLearnMethod: pm.moveLearnMethod ?? undefined,
-    }));
+    return moves.map((pm) => {
+      // Asegurar que siempre hay un id y pokeApiId válidos
+      const moveId = pm.move.pokeApiId || pm.move.id || 0;
+      const pokeApiId = pm.move.pokeApiId || 0;
+      return {
+        id: moveId,
+        pokeApiId: pokeApiId,
+        name: pm.move.name,
+        power: pm.move.power ?? undefined,
+        pp: pm.move.pp ?? undefined,
+        priority: pm.move.priority ?? undefined,
+        accuracy: pm.move.accuracy ?? undefined,
+        type: {
+          id: pm.move.type.id,
+          name: pm.move.type.name,
+        },
+        levelLearnedAt: pm.levelLearnedAt ?? undefined,
+        moveLearnMethod: pm.moveLearnMethod ?? undefined,
+      };
+    });
   }
 }

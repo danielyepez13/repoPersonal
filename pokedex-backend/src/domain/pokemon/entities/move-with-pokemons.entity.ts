@@ -7,6 +7,9 @@ export class MoveWithPokemons {
   @Field(() => Int)
   id: number;
 
+  @Field(() => Int)
+  pokeApiId: number;
+
   @Field()
   name: string;
 

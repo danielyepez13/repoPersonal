@@ -11,8 +11,11 @@ export class MoveTypeEntity {
 
 @ObjectType()
 export class MoveEntity {
+  @Field(() => Int, { nullable: true })
+  id?: number;
+
   @Field(() => Int)
-  id: number;
+  pokeApiId: number;
 
   @Field()
   name: string;
@@ -28,6 +31,9 @@ export class MoveEntity {
 
   @Field(() => Int, { nullable: true })
   accuracy?: number;
+
+  @Field()
+  category: string; // 'physical', 'special', 'status'
 
   @Field(() => MoveTypeEntity)
   type: MoveTypeEntity;

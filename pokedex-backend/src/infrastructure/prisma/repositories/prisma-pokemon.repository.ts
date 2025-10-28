@@ -4,11 +4,15 @@ import { PokemonRepository } from '@/domain/pokemon/repositories/pokemon.reposit
 import { PrismaService } from '../prisma.service';
 import { PokemonMapper } from '../mappers/pokemon.mapper';
 import { PrismaPokemonHelpers } from './prisma-pokemon.helpers';
-import type { PokemonWithRelations as ApiPokemonWithRelations } from '@/infrastructure/pokeapi/pokeapi.service';
+import type { PokeApiPokemonData as ApiPokemonWithRelations } from '@/infrastructure/pokeapi/pokeapi.service';
+import { PokeApiService } from '@/infrastructure/pokeapi/pokeapi.service';
 
 @Injectable()
 export class PrismaPokemonRepository implements PokemonRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pokeApiService: PokeApiService,
+  ) {}
 
   async findById(id: number): Promise<Pokemon | null> {
     return await PrismaPokemonHelpers.findPokemonSafe(
@@ -27,7 +31,7 @@ export class PrismaPokemonRepository implements PokemonRepository {
         this.prisma.pokemon.findMany({
           where: { pokedexNumber: { in: ids } },
           orderBy: { pokedexNumber: 'asc' },
-          include: PrismaPokemonHelpers.getPokemonInclude(),
+          include: PrismaPokemonHelpers.getPokemonIncludeWithoutMoves(),
         }),
       'finding Pokemons with ids',
     );
@@ -44,7 +48,10 @@ export class PrismaPokemonRepository implements PokemonRepository {
     );
   }
 
-  async save(pokemon: ApiPokemonWithRelations): Promise<Pokemon> {
+  async save(
+    pokemon: ApiPokemonWithRelations,
+    includeMoves = false,
+  ): Promise<Pokemon> {
     try {
       const saved = await this.prisma.pokemon.upsert({
         where: { pokedexNumber: pokemon.pokedexNumber },
@@ -78,15 +85,19 @@ export class PrismaPokemonRepository implements PokemonRepository {
         await this.saveStats(saved.id, pokemon.stats);
       }
 
-      // Guardar movimientos si existen
-      if (pokemon.moves && pokemon.moves.length > 0) {
+      // Guardar movimientos solo si se solicita explícitamente
+      if (includeMoves && pokemon.moves && pokemon.moves.length > 0) {
         await this.saveMoves(saved.id, pokemon.moves);
       }
 
       // Obtener el Pokemon con sus relaciones guardadas
+      const include = includeMoves
+        ? PrismaPokemonHelpers.getPokemonInclude()
+        : PrismaPokemonHelpers.getPokemonIncludeWithoutMoves();
+
       const savedWithRelations = await this.prisma.pokemon.findUnique({
         where: { id: saved.id },
-        include: PrismaPokemonHelpers.getPokemonInclude(),
+        include,
       });
 
       if (!savedWithRelations) {
@@ -180,50 +191,130 @@ export class PrismaPokemonRepository implements PokemonRepository {
           orderBy: { pokedexNumber: 'asc' },
           take: limit,
           skip: offset,
-          include: PrismaPokemonHelpers.getPokemonInclude(),
+          include: PrismaPokemonHelpers.getPokemonIncludeWithoutMoves(),
         }),
       'searching Pokemons by name',
     );
   }
 
+  private isMovieIncomplete(move: {
+    name: string;
+    power?: number;
+    pp?: number;
+    priority?: number;
+    accuracy?: number;
+    category?: string;
+    type: { name: string };
+  }): boolean {
+    // Un movimiento está incompleto si le faltan campos importantes
+    return move.pp === null || !move.category || move.type.name === 'normal';
+  }
+
   private async saveMoves(
     pokemonId: number,
     moves: Array<{
+      pokeApiId?: number;
       name: string;
       power?: number;
       pp?: number;
       priority?: number;
       accuracy?: number;
+      category?: string;
       type: { name: string };
     }>,
   ): Promise<void> {
-    await this.prisma.pokemonMove.deleteMany({ where: { pokemonId } });
+    // Usar transacción para atomicidad y evitar race conditions
+    await this.prisma.$transaction(async (tx) => {
+      // Eliminar todos los movimientos existentes para este Pokémon
+      await tx.pokemonMove.deleteMany({ where: { pokemonId } });
 
-    for (const move of moves) {
-      const typeRecord = await PrismaPokemonHelpers.getOrCreateRecord(
-        () => this.prisma.type.findUnique({ where: { name: move.type.name } }),
-        () => this.prisma.type.create({ data: { name: move.type.name } }),
-      );
+      for (let move of moves) {
+        // Si el movimiento está incompleto, intentar obtenerlo de PokeAPI
+        if (this.isMovieIncomplete(move)) {
+          try {
+            const pokeApiMove = await this.pokeApiService.fetchMoveDetails(
+              move.name,
+            );
+            move = {
+              ...move,
+              ...pokeApiMove,
+            };
+          } catch (error) {
+            console.warn(
+              `Could not fetch move details from PokeAPI for ${move.name}:`,
+              error instanceof Error ? error.message : String(error),
+            );
+            // Continuar con los datos incompletos si falla
+          }
+        }
 
-      const moveRecord = await PrismaPokemonHelpers.getOrCreateRecord(
-        () => this.prisma.move.findUnique({ where: { name: move.name } }),
-        () =>
-          this.prisma.move.create({
+        const typeRecord = await PrismaPokemonHelpers.getOrCreateRecord(
+          () => tx.type.findUnique({ where: { name: move.type.name } }),
+          () => tx.type.create({ data: { name: move.type.name } }),
+        );
+
+        let moveRecord = await tx.move.findUnique({
+          where: { name: move.name },
+        });
+
+        if (moveRecord) {
+          // Actualizar movimiento existente con nuevos datos
+          moveRecord = await tx.move.update({
+            where: { id: moveRecord.id },
             data: {
-              name: move.name,
+              pokeApiId: move.pokeApiId ?? moveRecord.pokeApiId,
               power: move.power ?? undefined,
               pp: move.pp ?? undefined,
               priority: move.priority ?? undefined,
               accuracy: move.accuracy ?? undefined,
+              category: move.category ?? 'status',
               typeId: typeRecord.id,
             },
-          }),
-      );
+          });
+        } else {
+          // Crear nuevo movimiento
+          try {
+            moveRecord = await tx.move.create({
+              data: {
+                pokeApiId: move.pokeApiId ?? 0,
+                name: move.name,
+                power: move.power ?? undefined,
+                pp: move.pp ?? undefined,
+                priority: move.priority ?? undefined,
+                accuracy: move.accuracy ?? undefined,
+                category: move.category ?? 'status',
+                typeId: typeRecord.id,
+              },
+            });
+          } catch (error: unknown) {
+            if (
+              error instanceof Error &&
+              error.message.includes('Unique constraint failed')
+            ) {
+              // Race condition: otro proceso creó el movimiento
+              const existing = await tx.move.findUnique({
+                where: { name: move.name },
+              });
+              if (existing) {
+                moveRecord = existing;
+              } else {
+                throw error;
+              }
+            } else {
+              throw error;
+            }
+          }
+        }
 
-      await this.prisma.pokemonMove.create({
-        data: { pokemonId, moveId: moveRecord.id },
-      });
-    }
+        // Crear la relación (ya fue eliminada arriba)
+        await tx.pokemonMove.create({
+          data: {
+            pokemonId,
+            moveId: moveRecord.id,
+          },
+        });
+      }
+    });
   }
 
   async searchMoves(
@@ -522,6 +613,111 @@ export class PrismaPokemonRepository implements PokemonRepository {
       });
     } catch (error) {
       console.error('Error listing teams:', error);
+      throw error;
+    }
+  }
+
+  async getMoveById(id: number): Promise<any> {
+    try {
+      let move = await this.prisma.move.findUnique({
+        where: { pokeApiId: id },
+        include: {
+          type: true,
+          pokemonMoves: {
+            include: {
+              pokemon: {
+                include: {
+                  types: { include: { type: true } },
+                  abilities: { include: { ability: true } },
+                  stats: { include: { stat: true } },
+                },
+              },
+            },
+            orderBy: { pokemon: { pokedexNumber: 'asc' } },
+          },
+        },
+      });
+
+      if (!move) {
+        return null;
+      }
+
+      // Verificar si el movimiento está incompleto
+      if (move.pp === null || !move.category) {
+        try {
+          const pokeApiMove = await this.pokeApiService.fetchMoveDetails(
+            move.name,
+          );
+          // Actualizar movimiento en BD
+          move = await this.prisma.move.update({
+            where: { pokeApiId: move.pokeApiId },
+            data: {
+              power: pokeApiMove.power ?? undefined,
+              pp: pokeApiMove.pp ?? undefined,
+              priority: pokeApiMove.priority ?? undefined,
+              accuracy: pokeApiMove.accuracy ?? undefined,
+              category: pokeApiMove.category ?? 'status',
+            },
+            include: {
+              type: true,
+              pokemonMoves: {
+                include: {
+                  pokemon: {
+                    include: {
+                      types: { include: { type: true } },
+                      abilities: { include: { ability: true } },
+                      stats: { include: { stat: true } },
+                    },
+                  },
+                },
+                orderBy: { pokemon: { pokedexNumber: 'asc' } },
+              },
+            },
+          });
+        } catch (error) {
+          console.warn(
+            `Could not fetch move details from PokeAPI for ${move.name}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+          // Continuar con los datos incompletos si falla
+        }
+      }
+
+      return {
+        id: move.id,
+        pokeApiId: move.pokeApiId,
+        name: move.name,
+        power: move.power,
+        pp: move.pp,
+        priority: move.priority,
+        accuracy: move.accuracy,
+        category: (move as any).category || 'status',
+        type: {
+          id: move.type?.id,
+          name: move.type?.name,
+        },
+        pokemons: move.pokemonMoves.map((pm) => ({
+          id: pm.pokemon.id,
+          pokedexNumber: pm.pokemon.pokedexNumber,
+          name: pm.pokemon.name,
+          spriteUrl: pm.pokemon.spriteUrl,
+          types: pm.pokemon.types.map((pt) => ({
+            name: pt.type.name,
+            slot: pt.slot,
+          })),
+          abilities: pm.pokemon.abilities.map((pa) => ({
+            name: pa.ability.name,
+            slot: pa.slot,
+            isHidden: pa.isHidden,
+          })),
+          stats: pm.pokemon.stats.map((ps) => ({
+            name: ps.stat.name,
+            baseStat: ps.baseStat,
+          })),
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting move by id:', error);
       throw error;
     }
   }

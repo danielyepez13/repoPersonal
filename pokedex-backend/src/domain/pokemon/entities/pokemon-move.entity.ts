@@ -3,6 +3,12 @@ import { MoveTypeEntity } from './move.entity';
 
 @ObjectType()
 export class PokemonMoveEntity {
+  @Field(() => Int)
+  id: number;
+
+  @Field(() => Int)
+  pokeApiId: number;
+
   @Field()
   name: string;
 

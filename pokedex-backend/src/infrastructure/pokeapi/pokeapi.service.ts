@@ -58,7 +58,7 @@ interface PokeApiPokemon {
   moves: PokeApiMove[];
 }
 
-export interface PokemonWithRelations {
+export interface PokeApiPokemonData {
   id: number;
   pokedexNumber: number;
   name: string;
@@ -70,6 +70,8 @@ export interface PokemonWithRelations {
   abilities?: Array<{ name: string; slot: number; isHidden: boolean }>;
   stats?: Array<{ name: string; baseStat: number; effort: number }>;
   moves?: Array<{
+    id: number;
+    pokeApiId: number;
     name: string;
     power?: number;
     pp?: number;
@@ -85,11 +87,11 @@ export class PokeApiService {
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000; // ms
 
-  async fetchPokemon(id: number): Promise<PokemonWithRelations> {
+  async fetchPokemon(id: number): Promise<PokeApiPokemonData> {
     return this.fetchPokemonData(`${this.baseUrl}/pokemon/${id}`, `id ${id}`);
   }
 
-  async fetchPokemonByName(name: string): Promise<PokemonWithRelations> {
+  async fetchPokemonByName(name: string): Promise<PokeApiPokemonData> {
     return this.fetchPokemonData(
       `${this.baseUrl}/pokemon/${name}`,
       `name ${name}`,
@@ -99,7 +101,7 @@ export class PokeApiService {
   private async fetchPokemonData(
     url: string,
     identifier: string,
-  ): Promise<PokemonWithRelations> {
+  ): Promise<PokeApiPokemonData> {
     return this.fetchWithRetry(url, identifier, 0);
   }
 
@@ -107,7 +109,7 @@ export class PokeApiService {
     url: string,
     identifier: string,
     attempt: number,
-  ): Promise<PokemonWithRelations> {
+  ): Promise<PokeApiPokemonData> {
     try {
       const response: AxiosResponse<PokeApiPokemon> =
         await axios.get<PokeApiPokemon>(url, {
@@ -150,7 +152,7 @@ export class PokeApiService {
 
   private async mapApiDataToPokemon(
     apiData: PokeApiPokemon,
-  ): Promise<PokemonWithRelations> {
+  ): Promise<PokeApiPokemonData> {
     const pokemon = new Pokemon({
       id: apiData.id,
       pokedexNumber: apiData.id,
@@ -159,7 +161,7 @@ export class PokeApiService {
       weight: apiData.weight,
       spriteUrl: apiData.sprites.front_default,
       createdAt: new Date(),
-    }) as PokemonWithRelations;
+    }) as PokeApiPokemonData;
 
     pokemon.types = this.mapTypes(apiData.types);
     pokemon.abilities = this.mapAbilities(apiData.abilities);
@@ -200,11 +202,14 @@ export class PokeApiService {
 
   private async mapMoves(apiMoves: PokeApiMove[]): Promise<
     Array<{
+      id: number;
+      pokeApiId: number;
       name: string;
       power?: number;
       pp?: number;
       priority?: number;
       accuracy?: number;
+      category?: string;
       type: { name: string };
     }>
   > {
@@ -222,22 +227,31 @@ export class PokeApiService {
     // Obtener detalles de los movimientos en paralelo
     const moveDetailsPromises = uniqueApiMoves.map((move) =>
       this.fetchMoveDetails(move.move.name).catch(() => ({
+        id: 0,
+        pokeApiId: 0,
         name: move.move.name,
+        category: 'status',
         type: { name: 'normal' }, // Valor por defecto si falla la llamada
       })),
     );
 
     const moveDetails = await Promise.all(moveDetailsPromises);
 
-    return moveDetails;
+    return moveDetails.map((move) => ({
+      ...move,
+      id: move.pokeApiId || move.id || 0,
+    }));
   }
 
   async fetchMoveDetails(moveName: string): Promise<{
+    id: number;
+    pokeApiId: number;
     name: string;
     power?: number;
     pp?: number;
     priority?: number;
     accuracy?: number;
+    category?: string;
     type: { name: string };
   }> {
     return this.fetchMoveDetailsWithRetry(moveName, 0);
@@ -247,11 +261,14 @@ export class PokeApiService {
     moveName: string,
     attempt: number,
   ): Promise<{
+    id: number;
+    pokeApiId: number;
     name: string;
     power?: number;
     pp?: number;
     priority?: number;
     accuracy?: number;
+    category?: string;
     type: { name: string };
   }> {
     try {
@@ -263,6 +280,7 @@ export class PokeApiService {
         priority: number;
         accuracy: number | null;
         type: { name: string; url: string };
+        damage_class: { name: string; url: string };
       }> = await axios.get(`${this.baseUrl}/move/${moveName}`, {
         timeout: 10000,
       });
@@ -270,11 +288,14 @@ export class PokeApiService {
       const moveData = response.data;
 
       return {
+        id: moveData.id,
+        pokeApiId: moveData.id,
         name: moveData.name,
         power: moveData.power ?? undefined,
         pp: moveData.pp ?? undefined,
         priority: moveData.priority ?? undefined,
         accuracy: moveData.accuracy ?? undefined,
+        category: moveData.damage_class?.name ?? 'status',
         type: { name: moveData.type.name },
       };
     } catch (error: unknown) {

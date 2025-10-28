@@ -5,6 +5,8 @@ import { GetPokemonByNameQuery } from '@/application/pokemon/queries/get-pokemon
 import { GetPokemonByNameHandler } from '@/application/pokemon/handlers/get-pokemon-by-name.handler';
 import { GetPokemonByIdQuery } from '@/application/pokemon/queries/get-pokemon-by-id.query';
 import { GetPokemonByIdHandler } from '@/application/pokemon/handlers/get-pokemon-by-id.handler';
+import { GetMoveByIdQuery } from '@/application/pokemon/queries/get-move-by-id.query';
+import { GetMoveByIdHandler } from '@/application/pokemon/handlers/get-move-by-id.handler';
 import { SearchPokemonsQuery } from '@/application/pokemon/queries/search-pokemons.query';
 import { SearchPokemonsHandler } from '@/application/pokemon/handlers/search-pokemons.handler';
 import { SearchMovesQuery } from '@/application/pokemon/queries/search-moves.query';
@@ -24,6 +26,7 @@ export class PokemonResolver {
     private readonly pokemonsHandler: GetPokemonsHandler,
     private readonly pokemonByNameHandler: GetPokemonByNameHandler,
     private readonly pokemonByIdHandler: GetPokemonByIdHandler,
+    private readonly moveByIdHandler: GetMoveByIdHandler,
     private readonly searchPokemonsHandler: SearchPokemonsHandler,
     private readonly searchMovesHandler: SearchMovesHandler,
     private readonly searchTypesHandler: SearchTypesHandler,
@@ -43,6 +46,11 @@ export class PokemonResolver {
   @Query(() => Pokemon, { nullable: true })
   async pokemonById(@Args() input: GetPokemonByIdQuery) {
     return this.pokemonByIdHandler.execute(input);
+  }
+
+  @Query(() => MoveWithPokemons, { nullable: true })
+  async moveById(@Args() input: GetMoveByIdQuery) {
+    return this.moveByIdHandler.execute(input);
   }
 
   @Query(() => [Pokemon])

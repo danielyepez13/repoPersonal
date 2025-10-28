@@ -28,6 +28,7 @@ export interface PokemonRepository {
     limit: number,
     offset: number,
   ): Promise<AbilityWithPokemons[]>;
+  getMoveById(id: number): Promise<any>;
   createTeam(data: any): Promise<any>;
   getTeamById(teamId: number): Promise<any>;
   updateTeam(teamId: number, data: any): Promise<any>;

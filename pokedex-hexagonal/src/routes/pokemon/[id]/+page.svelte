@@ -1,12 +1,23 @@
 <script lang="ts">
   // @ts-ignore
   import type { PageData } from "./$types";
+  import { goto } from '$app/navigation';
 
   export let data: PageData;
 
   let moves: any[] = [];
   let movesLoading = false;
   let movesLoaded = false;
+  let isMovesExpanded = false;
+
+  async function toggleMovesExpander() {
+    isMovesExpanded = !isMovesExpanded;
+    
+    // Si se abre y no hay datos cargados, cargar
+    if (isMovesExpanded && !movesLoaded && !movesLoading) {
+      await loadMoves();
+    }
+  }
 
   async function loadMoves() {
     if (movesLoaded || movesLoading) return;
@@ -24,6 +35,10 @@
     } finally {
       movesLoading = false;
     }
+  }
+
+  function goToMoveDetail(moveId: number) {
+    goto(`/pokemon/${data.pokemon.pokedexNumber}/moves/${moveId}`);
   }
 </script>
 
@@ -125,36 +140,53 @@
       </section>
 
       <section class="section">
-        <h2>Movimientos</h2>
-        {#if !movesLoaded}
-          <button class="load-moves-btn" on:click={loadMoves} disabled={movesLoading}>
-            {movesLoading ? 'Cargando movimientos...' : 'Cargar movimientos'}
-          </button>
-        {:else if moves && moves.length > 0}
-          <div class="moves-table">
-            <div class="moves-header">
-              <div class="move-col-name">Nombre</div>
-              <div class="move-col-type">Tipo</div>
-              <div class="move-col-power">Poder</div>
-              <div class="move-col-pp">PP</div>
-              <div class="move-col-accuracy">Precisión</div>
-            </div>
-            {#each moves as move}
-              <div class="move-row">
-                <div class="move-col-name">{move.name}</div>
-                <div class="move-col-type">
-                  <span class="type-badge" data-type={move.type?.name || 'normal'}>
-                    {move.type?.name || 'normal'}
-                  </span>
-                </div>
-                <div class="move-col-power">{move.power || '-'}</div>
-                <div class="move-col-pp">{move.pp || '-'}</div>
-                <div class="move-col-accuracy">{move.accuracy || '-'}</div>
+        <button class="expander-header" on:click={toggleMovesExpander}>
+          <span class="expander-icon" class:expanded={isMovesExpanded}>▾</span>
+          <h2 class="expander-title">
+            Movimientos {moves.length > 0 ? `(${moves.length})` : ''}
+          </h2>
+          {#if movesLoading}
+            <span class="expander-status">Cargando...</span>
+          {/if}
+        </button>
+        
+        {#if isMovesExpanded}
+          <div class="expander-content">
+            {#if movesLoading}
+              <div class="loading-state">
+                <p>Cargando movimientos...</p>
               </div>
-            {/each}
+            {:else if moves && moves.length > 0}
+              <div class="moves-table">
+                <div class="moves-header">
+                  <div class="move-col-name">Nombre</div>
+                  <div class="move-col-type">Tipo</div>
+                  <div class="move-col-power">Poder</div>
+                  <div class="move-col-pp">PP</div>
+                  <div class="move-col-accuracy">Precisión</div>
+                </div>
+                {#each moves as move}
+                  <button 
+                    class="move-row" 
+                    on:click={() => goToMoveDetail(move.pokeApiId)}
+                    type="button"
+                  >
+                    <div class="move-col-name">{move.name}</div>
+                    <div class="move-col-type">
+                      <span class="type-badge" data-type={move.type?.name || 'normal'}>
+                        {move.type?.name || 'normal'}
+                      </span>
+                    </div>
+                    <div class="move-col-power">{move.power || '-'}</div>
+                    <div class="move-col-pp">{move.pp || '-'}</div>
+                    <div class="move-col-accuracy">{move.accuracy || '-'}</div>
+                  </button>
+                {/each}
+              </div>
+            {:else}
+              <p class="no-moves">Este Pokémon no tiene movimientos registrados.</p>
+            {/if}
           </div>
-        {:else}
-          <p class="no-moves">Este Pokémon no tiene movimientos registrados.</p>
         {/if}
       </section>
     </div>
@@ -501,7 +533,14 @@
     padding: 1.2rem;
     border-bottom: 1px solid #e5e7eb;
     align-items: center;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
   }
 
   :global(.dark) .move-row {
@@ -509,11 +548,16 @@
   }
 
   .move-row:hover {
-    background-color: #f9fafb;
+    background-color: #f3f4f6;
+    transform: translateX(4px);
   }
 
   :global(.dark) .move-row:hover {
     background-color: #1e293b;
+  }
+
+  .move-row:active {
+    transform: translateX(2px);
   }
 
   .move-row:last-child {
@@ -546,34 +590,92 @@
     color: #9ca3af;
   }
 
-  .load-moves-btn {
-    padding: 0.9rem 2rem;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
+  .expander-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 0;
+    background: none;
     border: none;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 700;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    text-align: left;
   }
 
-  .load-moves-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  .expander-header:hover {
+    opacity: 0.8;
   }
 
-  .load-moves-btn:active:not(:disabled) {
-    transform: translateY(0);
+  .expander-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 1.2rem;
+    color: #3b82f6;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
   }
 
-  .load-moves-btn:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-    transform: none;
+  :global(.dark) .expander-icon {
+    color: #60a5fa;
+  }
+
+  .expander-icon.expanded {
+    transform: rotate(180deg);
+  }
+
+  .expander-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    flex: 1;
+  }
+
+  :global(.dark) .expander-title {
+    color: #f0f9ff;
+  }
+
+  .expander-status {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    font-weight: 500;
+  }
+
+  :global(.dark) .expander-status {
+    color: #6b7280;
+  }
+
+  .expander-content {
+    margin-top: 1.5rem;
+    animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #9ca3af;
+    font-style: italic;
+  }
+
+  :global(.dark) .loading-state {
+    color: #6b7280;
   }
 
   .no-moves {
