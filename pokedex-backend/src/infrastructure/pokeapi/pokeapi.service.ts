@@ -82,6 +82,8 @@ export interface PokemonWithRelations {
 @Injectable()
 export class PokeApiService {
   private readonly baseUrl = 'https://pokeapi.co/api/v2';
+  private readonly maxRetries = 3;
+  private readonly retryDelay = 1000; // ms
 
   async fetchPokemon(id: number): Promise<PokemonWithRelations> {
     return this.fetchPokemonData(`${this.baseUrl}/pokemon/${id}`, `id ${id}`);
@@ -98,13 +100,39 @@ export class PokeApiService {
     url: string,
     identifier: string,
   ): Promise<PokemonWithRelations> {
+    return this.fetchWithRetry(url, identifier, 0);
+  }
+
+  private async fetchWithRetry(
+    url: string,
+    identifier: string,
+    attempt: number,
+  ): Promise<PokemonWithRelations> {
     try {
       const response: AxiosResponse<PokeApiPokemon> =
-        await axios.get<PokeApiPokemon>(url);
+        await axios.get<PokeApiPokemon>(url, {
+          timeout: 10000, // 10 segundos timeout
+        });
       const apiData: PokeApiPokemon = response.data;
 
       return await this.mapApiDataToPokemon(apiData);
     } catch (error: unknown) {
+      const isRetryableError =
+        error instanceof Error &&
+        (error.message.includes('ECONNRESET') ||
+          error.message.includes('ETIMEDOUT') ||
+          error.message.includes('ENOTFOUND') ||
+          error.message.includes('socket hang up'));
+
+      if (isRetryableError && attempt < this.maxRetries) {
+        const delay = this.retryDelay * Math.pow(2, attempt); // Backoff exponencial
+        console.warn(
+          `Reintentando obtener Pokemon ${identifier} (intento ${attempt + 1}/${this.maxRetries}) en ${delay}ms`,
+        );
+        await this.sleep(delay);
+        return this.fetchWithRetry(url, identifier, attempt + 1);
+      }
+
       if (error instanceof Error) {
         throw new Error(
           `Error fetching Pokemon with ${identifier}: ${error.message}`,
@@ -114,6 +142,10 @@ export class PokeApiService {
         `Error fetching Pokemon with ${identifier}: ${String(error)}`,
       );
     }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async mapApiDataToPokemon(
@@ -208,6 +240,20 @@ export class PokeApiService {
     accuracy?: number;
     type: { name: string };
   }> {
+    return this.fetchMoveDetailsWithRetry(moveName, 0);
+  }
+
+  private async fetchMoveDetailsWithRetry(
+    moveName: string,
+    attempt: number,
+  ): Promise<{
+    name: string;
+    power?: number;
+    pp?: number;
+    priority?: number;
+    accuracy?: number;
+    type: { name: string };
+  }> {
     try {
       const response: AxiosResponse<{
         id: number;
@@ -217,7 +263,9 @@ export class PokeApiService {
         priority: number;
         accuracy: number | null;
         type: { name: string; url: string };
-      }> = await axios.get(`${this.baseUrl}/move/${moveName}`);
+      }> = await axios.get(`${this.baseUrl}/move/${moveName}`, {
+        timeout: 10000,
+      });
 
       const moveData = response.data;
 
@@ -230,6 +278,22 @@ export class PokeApiService {
         type: { name: moveData.type.name },
       };
     } catch (error: unknown) {
+      const isRetryableError =
+        error instanceof Error &&
+        (error.message.includes('ECONNRESET') ||
+          error.message.includes('ETIMEDOUT') ||
+          error.message.includes('ENOTFOUND') ||
+          error.message.includes('socket hang up'));
+
+      if (isRetryableError && attempt < this.maxRetries) {
+        const delay = this.retryDelay * Math.pow(2, attempt);
+        console.warn(
+          `Reintentando obtener movimiento ${moveName} (intento ${attempt + 1}/${this.maxRetries}) en ${delay}ms`,
+        );
+        await this.sleep(delay);
+        return this.fetchMoveDetailsWithRetry(moveName, attempt + 1);
+      }
+
       if (error instanceof Error) {
         throw new Error(
           `Error fetching move details for ${moveName}: ${error.message}`,

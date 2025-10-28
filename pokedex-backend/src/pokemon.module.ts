@@ -3,6 +3,7 @@ import { PokemonResolver } from './interfaces/graphql/pokemon.resolver';
 import { TeamResolver } from './interfaces/graphql/team.resolver';
 import { GetPokemonsHandler } from './application/pokemon/handlers/get-pokemons.handler';
 import { GetPokemonByNameHandler } from './application/pokemon/handlers/get-pokemon-by-name.handler';
+import { GetPokemonByIdHandler } from './application/pokemon/handlers/get-pokemon-by-id.handler';
 import { SearchPokemonsHandler } from './application/pokemon/handlers/search-pokemons.handler';
 import { SearchMovesHandler } from './application/pokemon/handlers/search-moves.handler';
 import { SearchTypesHandler } from './application/pokemon/handlers/search-types.handler';
@@ -29,6 +30,7 @@ import { NatureItemService } from './infrastructure/services/nature-item.service
     TeamResolver,
     GetPokemonsHandler,
     GetPokemonByNameHandler,
+    GetPokemonByIdHandler,
     SearchPokemonsHandler,
     SearchMovesHandler,
     SearchTypesHandler,

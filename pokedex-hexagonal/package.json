@@ -12,17 +12,25 @@
     "generate-types": "svelte-kit sync"
   },
   "devDependencies": {
+    "@skeletonlabs/skeleton": "^4.1.5",
+    "@skeletonlabs/tw-plugin": "^0.4.1",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.1",
+    "@tailwindcss/postcss": "^4.1.16",
     "@tsconfig/svelte": "^5.0.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
     "svelte": "^4.2.7",
     "svelte-check": "^3.6.3",
+    "tailwindcss": "^4.1.16",
     "typescript": "^5.0.0",
     "vite": "^5.0.0"
   },
   "dependencies": {
     "@sveltejs/adapter-auto": "^3.0.0",
     "axios": "^1.6.2",
+    "graphql": "^16.11.0",
+    "graphql-request": "^7.3.1",
     "zod": "^3.22.4"
   }
 }

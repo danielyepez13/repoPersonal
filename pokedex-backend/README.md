@@ -358,6 +358,30 @@ GraphQL Playground: `http://localhost:3000/graphql`
 
 ---
 
+## 📚 Guías de Documentación
+
+### Queries GraphQL Disponibles
+
+- **[SEARCH_QUERIES.md](./docs/guias/SEARCH_QUERIES.md)** - Búsqueda de Pokémon, Movimientos, Tipos y Habilidades
+  - `searchPokemons` - Buscar Pokémon por nombre
+  - `searchMoves` - Buscar movimientos
+  - `searchTypes` - Buscar tipos
+  - `searchAbilities` - Buscar habilidades
+
+- **[TEAMS_GRAPHQL.md](./docs/guias/TEAMS_GRAPHQL.md)** - Sistema de Equipos de Pokémon
+  - `createTeam` - Crear nuevo equipo
+  - `team` - Obtener equipo por ID
+  - `teams` - Listar equipos (paginado)
+  - `updateTeam` - Actualizar equipo
+  - `deleteTeam` - Eliminar equipo
+
+### Arquitectura y Optimizaciones
+
+- **[README.md](./README.md)** - Arquitectura hexagonal y estructura del proyecto
+- **[REPOSITORY_OPTIMIZATION.md](./docs/REPOSITORY_OPTIMIZATION.md)** - Optimizaciones del repositorio
+
+---
+
 ## 📝 Notas de Desarrollo
 
 ### Agregar una Nueva Funcionalidad

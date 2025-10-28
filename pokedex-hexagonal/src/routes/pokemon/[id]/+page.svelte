@@ -3,43 +3,592 @@
   import type { PageData } from "./$types";
 
   export let data: PageData;
+
+  let moves: any[] = [];
+  let movesLoading = false;
+  let movesLoaded = false;
+
+  async function loadMoves() {
+    if (movesLoaded || movesLoading) return;
+    
+    movesLoading = true;
+    try {
+      const response = await fetch(`/pokemon/${data.pokemon.pokedexNumber}/moves`);
+      if (response.ok) {
+        const result = await response.json();
+        moves = result.moves || [];
+        movesLoaded = true;
+      }
+    } catch (error) {
+      console.error('Error loading moves:', error);
+    } finally {
+      movesLoading = false;
+    }
+  }
 </script>
 
-{#if data?.error}
-  <h1>Error: {data?.error?.message} (Código: {data?.error?.code})</h1>
-{:else if data?.pokemon}
-  <div class="pokemon-detail">
-    <h1>{data?.pokemon?.name}</h1>
-    <p>ID: {data?.pokemon?.id}</p>
-    <p>Altura: {data?.pokemon?.height} dm</p>
-    <p>Peso: {data?.pokemon?.weight} hg</p>
+{#if data?.pokemon}
+  <div class="pokemon-detail-container">
+    <a href="/" class="back-link">← Volver al listado</a>
+    
+    <div class="pokemon-header">
+      <div class="pokemon-image">
+        <img src={data?.pokemon?.spriteUrl} alt={data?.pokemon?.name} />
+      </div>
+      
+      <div class="pokemon-header-info">
+        <h1>{data?.pokemon?.name}</h1>
+        <p class="pokedex-number">#{data?.pokemon?.pokedexNumber}</p>
+        
+        <div class="basic-info">
+          <div class="info-item">
+            <span class="label">Altura:</span>
+            <span class="value">{data?.pokemon?.height} dm</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Peso:</span>
+            <span class="value">{data?.pokemon?.weight} hg</span>
+          </div>
+        </div>
 
-    <h2>Tipos</h2>
-    <ul>
-      {#each data?.pokemon?.types || [] as type}
-        <li>{type}</li>
-      {/each}
-    </ul>
+        <div class="types">
+          {#each data?.pokemon?.types || [] as type}
+            <span class="type-badge" data-type={type}>
+              {type}
+            </span>
+          {/each}
+        </div>
+      </div>
+    </div>
 
-    <h2>Habilidades</h2>
-    <ul>
-      {#each data?.pokemon?.abilities || [] as ability}
-        <li>
-          {ability.name}
-          {#if ability.isHidden}
-            (Oculta){/if}
-        </li>
-      {/each}
-    </ul>
+    <div class="pokemon-sections">
+      <section class="section">
+        <h2>Habilidades</h2>
+        <div class="abilities-list">
+          {#each data?.pokemon?.abilities || [] as ability}
+            <div class="ability-item">
+              <span class="ability-name">{ability.name}</span>
+              {#if ability.isHidden}
+                <span class="hidden-badge">Oculta</span>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </section>
 
-    <h2>Estadísticas</h2>
-    <ul>
-      <li>HP: {data?.pokemon?.stats?.hp || 0}</li>
-      <li>Ataque: {data?.pokemon?.stats?.attack || 0}</li>
-      <li>Defensa: {data?.pokemon?.stats?.defense || 0}</li>
-      <li>Ataque Especial: {data?.pokemon?.stats?.specialAttack || 0}</li>
-      <li>Defensa Especial: {data?.pokemon?.stats?.specialDefense || 0}</li>
-      <li>Velocidad: {data?.pokemon?.stats?.speed || 0}</li>
-    </ul>
+      <section class="section">
+        <h2>Estadísticas</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <span class="stat-name">HP</span>
+            <div class="stat-bar">
+              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.hp || 0) / 1.5}%"></div>
+            </div>
+            <span class="stat-value">{data?.pokemon?.stats?.hp || 0}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-name">Ataque</span>
+            <div class="stat-bar">
+              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.attack || 0) / 1.5}%"></div>
+            </div>
+            <span class="stat-value">{data?.pokemon?.stats?.attack || 0}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-name">Defensa</span>
+            <div class="stat-bar">
+              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.defense || 0) / 1.5}%"></div>
+            </div>
+            <span class="stat-value">{data?.pokemon?.stats?.defense || 0}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-name">Ataque Especial</span>
+            <div class="stat-bar">
+              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.specialAttack || 0) / 1.5}%"></div>
+            </div>
+            <span class="stat-value">{data?.pokemon?.stats?.specialAttack || 0}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-name">Defensa Especial</span>
+            <div class="stat-bar">
+              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.specialDefense || 0) / 1.5}%"></div>
+            </div>
+            <span class="stat-value">{data?.pokemon?.stats?.specialDefense || 0}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-name">Velocidad</span>
+            <div class="stat-bar">
+              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.speed || 0) / 1.5}%"></div>
+            </div>
+            <span class="stat-value">{data?.pokemon?.stats?.speed || 0}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Movimientos</h2>
+        {#if !movesLoaded}
+          <button class="load-moves-btn" on:click={loadMoves} disabled={movesLoading}>
+            {movesLoading ? 'Cargando movimientos...' : 'Cargar movimientos'}
+          </button>
+        {:else if moves && moves.length > 0}
+          <div class="moves-table">
+            <div class="moves-header">
+              <div class="move-col-name">Nombre</div>
+              <div class="move-col-type">Tipo</div>
+              <div class="move-col-power">Poder</div>
+              <div class="move-col-pp">PP</div>
+              <div class="move-col-accuracy">Precisión</div>
+            </div>
+            {#each moves as move}
+              <div class="move-row">
+                <div class="move-col-name">{move.name}</div>
+                <div class="move-col-type">
+                  <span class="type-badge" data-type={move.type?.name || 'normal'}>
+                    {move.type?.name || 'normal'}
+                  </span>
+                </div>
+                <div class="move-col-power">{move.power || '-'}</div>
+                <div class="move-col-pp">{move.pp || '-'}</div>
+                <div class="move-col-accuracy">{move.accuracy || '-'}</div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="no-moves">Este Pokémon no tiene movimientos registrados.</p>
+        {/if}
+      </section>
+    </div>
   </div>
 {/if}
+
+<style>
+  .pokemon-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 2rem;
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+  }
+
+  .back-link:hover {
+    color: #2563eb;
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+
+  :global(.dark) .back-link {
+    color: #60a5fa;
+  }
+
+  :global(.dark) .back-link:hover {
+    color: #93c5fd;
+    background-color: rgba(96, 165, 250, 0.1);
+  }
+
+  .pokemon-header {
+    display: flex;
+    gap: 2.5rem;
+    margin-bottom: 3rem;
+    background: white;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+  }
+
+  :global(.dark) .pokemon-header {
+    background: #0f172a;
+    border-color: #334155;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .pokemon-image {
+    flex-shrink: 0;
+    width: 220px;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-radius: 16px;
+  }
+
+  :global(.dark) .pokemon-image {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  }
+
+  .pokemon-image img {
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+  }
+
+  .pokemon-header-info {
+    flex: 1;
+  }
+
+  .pokemon-header-info h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2.8rem;
+    text-transform: capitalize;
+    color: #1f2937;
+    font-weight: 800;
+  }
+
+  :global(.dark) .pokemon-header-info h1 {
+    color: #f0f9ff;
+  }
+
+  .pokedex-number {
+    color: #9ca3af;
+    font-size: 1.1rem;
+    margin: 0 0 1.5rem 0;
+    font-weight: 500;
+  }
+
+  :global(.dark) .pokedex-number {
+    color: #6b7280;
+  }
+
+  .basic-info {
+    display: flex;
+    gap: 2.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .info-item .label {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  :global(.dark) .info-item .label {
+    color: #6b7280;
+  }
+
+  .info-item .value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  :global(.dark) .info-item .value {
+    color: #f0f9ff;
+  }
+
+  .types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .type-badge {
+    display: inline-block;
+    padding: 0.5rem 1.1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  }
+
+  .type-badge[data-type="normal"] { background: linear-gradient(135deg, #a8a878 0%, #8b8b5f 100%); }
+  .type-badge[data-type="fire"] { background: linear-gradient(135deg, #f08030 0%, #d86820 100%); }
+  .type-badge[data-type="water"] { background: linear-gradient(135deg, #6890f0 0%, #4a7fd0 100%); }
+  .type-badge[data-type="electric"] { background: linear-gradient(135deg, #f8d030 0%, #d8b820 100%); color: #333; }
+  .type-badge[data-type="grass"] { background: linear-gradient(135deg, #78c850 0%, #5ca838 100%); }
+  .type-badge[data-type="ice"] { background: linear-gradient(135deg, #98d8d8 0%, #78b8b8 100%); color: #333; }
+  .type-badge[data-type="fighting"] { background: linear-gradient(135deg, #c03028 0%, #a02018 100%); }
+  .type-badge[data-type="poison"] { background: linear-gradient(135deg, #a040a0 0%, #803080 100%); }
+  .type-badge[data-type="ground"] { background: linear-gradient(135deg, #e0c068 0%, #c0a850 100%); color: #333; }
+  .type-badge[data-type="flying"] { background: linear-gradient(135deg, #a890f0 0%, #8870d0 100%); }
+  .type-badge[data-type="psychic"] { background: linear-gradient(135deg, #f85888 0%, #d83860 100%); }
+  .type-badge[data-type="bug"] { background: linear-gradient(135deg, #a8b820 0%, #88a018 100%); }
+  .type-badge[data-type="rock"] { background: linear-gradient(135deg, #b8a038 0%, #988028 100%); }
+  .type-badge[data-type="ghost"] { background: linear-gradient(135deg, #705898 0%, #584080 100%); }
+  .type-badge[data-type="dragon"] { background: linear-gradient(135deg, #7038f8 0%, #5820d8 100%); }
+  .type-badge[data-type="dark"] { background: linear-gradient(135deg, #705848 0%, #584038 100%); }
+  .type-badge[data-type="steel"] { background: linear-gradient(135deg, #b8b8d0 0%, #9898b0 100%); color: #333; }
+  .type-badge[data-type="fairy"] { background: linear-gradient(135deg, #ee99ac 0%, #ce7a8c 100%); }
+
+  .pokemon-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .section {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e7eb;
+  }
+
+  :global(.dark) .section {
+    background: #0f172a;
+    border-color: #334155;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .section h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #1f2937;
+    font-size: 1.5rem;
+    font-weight: 700;
+    border-bottom: 2px solid #3b82f6;
+    padding-bottom: 0.75rem;
+  }
+
+  :global(.dark) .section h2 {
+    color: #f0f9ff;
+    border-bottom-color: #60a5fa;
+  }
+
+  .abilities-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.2rem;
+  }
+
+  .ability-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+  }
+
+  :global(.dark) .ability-item {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-color: #334155;
+  }
+
+  .ability-item:hover {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-color: #d1d5db;
+    transform: translateY(-2px);
+  }
+
+  :global(.dark) .ability-item:hover {
+    background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+    border-color: #475569;
+  }
+
+  .ability-name {
+    text-transform: capitalize;
+    font-weight: 600;
+    color: #1f2937;
+    flex: 1;
+  }
+
+  :global(.dark) .ability-name {
+    color: #f0f9ff;
+  }
+
+  .hidden-badge {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .stat-name {
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 0.95rem;
+    text-transform: capitalize;
+  }
+
+  :global(.dark) .stat-name {
+    color: #f0f9ff;
+  }
+
+  .stat-bar {
+    height: 10px;
+    background-color: #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  :global(.dark) .stat-bar {
+    background-color: #334155;
+  }
+
+  .stat-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    transition: width 0.3s ease;
+  }
+
+  .stat-value {
+    font-weight: 700;
+    color: #3b82f6;
+    font-size: 1rem;
+  }
+
+  :global(.dark) .stat-value {
+    color: #60a5fa;
+  }
+
+  .moves-table {
+    overflow-x: auto;
+  }
+
+  .moves-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 1.2rem;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border-radius: 12px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.75rem;
+    border: 1px solid #e5e7eb;
+  }
+
+  :global(.dark) .moves-header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #f0f9ff;
+    border-color: #334155;
+  }
+
+  .move-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 1.2rem;
+    padding: 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+    align-items: center;
+    transition: background-color 0.2s ease;
+  }
+
+  :global(.dark) .move-row {
+    border-bottom-color: #334155;
+  }
+
+  .move-row:hover {
+    background-color: #f9fafb;
+  }
+
+  :global(.dark) .move-row:hover {
+    background-color: #1e293b;
+  }
+
+  .move-row:last-child {
+    border-bottom: none;
+  }
+
+  .move-col-name {
+    text-transform: capitalize;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  :global(.dark) .move-col-name {
+    color: #f0f9ff;
+  }
+
+  .move-col-type,
+  .move-col-power,
+  .move-col-pp,
+  .move-col-accuracy {
+    text-align: center;
+    color: #6b7280;
+    font-weight: 500;
+  }
+
+  :global(.dark) .move-col-type,
+  :global(.dark) .move-col-power,
+  :global(.dark) .move-col-pp,
+  :global(.dark) .move-col-accuracy {
+    color: #9ca3af;
+  }
+
+  .load-moves-btn {
+    padding: 0.9rem 2rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .load-moves-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  }
+
+  .load-moves-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .load-moves-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .no-moves {
+    color: #9ca3af;
+    font-style: italic;
+    text-align: center;
+    padding: 2rem 1rem;
+    background-color: #f9fafb;
+    border-radius: 12px;
+    border: 1px dashed #e5e7eb;
+  }
+
+  :global(.dark) .no-moves {
+    background-color: #1e293b;
+    color: #6b7280;
+    border-color: #334155;
+  }
+</style>

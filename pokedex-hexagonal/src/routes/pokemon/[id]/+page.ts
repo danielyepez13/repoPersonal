@@ -1,36 +1,45 @@
 import type { PageLoad } from './$types';
-import { QueryFactory } from '$core/queryFactory';
+import { GraphQLPokemonClient } from '$infrastructure/graphql/GraphQLClient';
 
 /**
  * Cargador de datos para la página de detalles de Pokémon.
  * @param params Parámetros de ruta
- * @returns Datos del Pokémon
+ * @returns Datos del Pokémon con todos los detalles
  */
 export const load: PageLoad = async ({ params }) => {
-    const query = QueryFactory.createGetPokemonByIdQuery();
-
     try {
-        const pokemon = await query.execute(Number(params.id));
+        const client = new GraphQLPokemonClient();
+        const pokemonData = await client.getPokemonById(Number(params.id));
 
-        if (!pokemon) {
+        if (!pokemonData) {
             throw new Error('Pokémon no encontrado');
         }
 
         return {
             pokemon: {
-                id: pokemon.getId().getValue(),
-                name: pokemon.getName().getValue(),
-                types: pokemon.getTypes().map(type => type.getValue()),
-                abilities: pokemon.getAbilities().map(ability => ({
-                    name: ability.getName(),
-                    isHidden: ability.getIsHidden()
+                id: pokemonData.id,
+                pokedexNumber: pokemonData.pokedexNumber,
+                name: pokemonData.name,
+                spriteUrl: pokemonData.spriteUrl,
+                height: pokemonData.height,
+                weight: pokemonData.weight,
+                types: pokemonData.types.map((t: any) => t.name),
+                abilities: pokemonData.abilities.map((a: any) => ({
+                    name: a.name,
+                    isHidden: a.isHidden
                 })),
-                stats: pokemon.getStats().getProps(),
-                height: pokemon.getHeight(),
-                weight: pokemon.getWeight()
+                stats: {
+                    hp: pokemonData.stats.find((s: any) => s.name === 'hp')?.baseStat || 0,
+                    attack: pokemonData.stats.find((s: any) => s.name === 'attack')?.baseStat || 0,
+                    defense: pokemonData.stats.find((s: any) => s.name === 'defense')?.baseStat || 0,
+                    specialAttack: pokemonData.stats.find((s: any) => s.name === 'special-attack')?.baseStat || 0,
+                    specialDefense: pokemonData.stats.find((s: any) => s.name === 'special-defense')?.baseStat || 0,
+                    speed: pokemonData.stats.find((s: any) => s.name === 'speed')?.baseStat || 0
+                }
             }
         };
     } catch (error) {
+        console.error('Error loading pokemon:', error);
         throw error;
     }
 };
