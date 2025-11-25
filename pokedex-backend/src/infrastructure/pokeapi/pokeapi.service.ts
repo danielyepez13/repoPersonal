@@ -180,14 +180,47 @@ export class PokeApiService {
     }));
   }
 
-  private mapAbilities(
-    apiAbilities: PokeApiAbility[],
-  ): Array<{ name: string; slot: number; isHidden: boolean }> {
+  private mapAbilities(apiAbilities: PokeApiAbility[]): Array<{
+    name: string;
+    slot: number;
+    isHidden: boolean;
+    description?: string;
+  }> {
     return apiAbilities.map((a) => ({
       name: a.ability.name,
       slot: a.slot,
       isHidden: a.is_hidden,
+      description: undefined, // Se obtiene bajo demanda en saveAbilities
     }));
+  }
+
+  async fetchAbilityDetails(
+    abilityName: string,
+  ): Promise<{ description?: string }> {
+    try {
+      const response: AxiosResponse<any> = await axios.get(
+        `${this.baseUrl}/ability/${abilityName}`,
+        {
+          timeout: 10000,
+        },
+      );
+      const abilityData = response.data;
+
+      // Buscar effect_entries con idioma "en"
+      const englishEffect = abilityData.effect_entries?.find(
+        (entry: any) => entry.language?.name === 'en',
+      );
+
+      return {
+        description: englishEffect?.short_effect || undefined,
+      };
+    } catch (error) {
+      console.warn(
+        `Could not fetch ability details from PokeAPI for ${abilityName}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+      return { description: undefined };
+    }
   }
 
   private mapStats(

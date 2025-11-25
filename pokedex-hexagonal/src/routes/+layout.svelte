@@ -1,8 +1,18 @@
 <script lang="ts">
   import "../app.css";
+  import { goto } from "$app/navigation";
+  import PokemonAutocomplete from "$lib/components/PokemonAutocomplete.svelte";
 
   let isDark = true;
   let searchQuery = "";
+
+  interface Pokemon {
+    id: number;
+    pokedexNumber: number;
+    name: string;
+    spriteUrl: string;
+    types: Array<{ name: string }>;
+  }
 
   function toggleTheme() {
     isDark = !isDark;
@@ -15,12 +25,9 @@
     }
   }
 
-  function handleSearch(e: KeyboardEvent) {
-    const target = e.target as HTMLInputElement;
-    const query = target.value;
-    if (query.trim()) {
-      window.location.href = `/pokemon?search=${encodeURIComponent(query)}`;
-    }
+  function handlePokemonSelect(pokemon: Pokemon) {
+    searchQuery = "";
+    goto(`/pokemon/${pokemon.pokedexNumber}`);
   }
 
   // Set initial theme from localStorage or system preference
@@ -48,18 +55,17 @@
   >
     <div class="container mx-auto px-4 py-4">
       <div class="flex items-center justify-between gap-4">
-        <h1 class="text-2xl font-bold text-white">Pokédex</h1>
+        <a href="/" class="btn btn-primary"
+          ><h1 class="text-2xl font-bold text-white">Pokédex</h1></a
+        >
 
-        <div class="flex-1 max-w-md relative">
-          <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60">
-            🔍
-          </span>
-          <input
-            type="text"
+        <div class="flex-1 max-w-md">
+          <PokemonAutocomplete
+            id="header-search"
             placeholder="Buscar Pokémon..."
             bind:value={searchQuery}
-            on:keydown={(e) => e.key === "Enter" && handleSearch(e)}
-            class="w-full pl-10 pr-4 py-2 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:border-white/60 focus:outline-none transition-colors duration-200"
+            onSelect={handlePokemonSelect}
+            customClass="header-search"
           />
         </div>
 

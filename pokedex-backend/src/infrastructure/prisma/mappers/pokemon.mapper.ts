@@ -7,7 +7,7 @@ export interface PokemonWithRelations extends PrismaPokemon {
     slot: number;
   }>;
   abilities: Array<{
-    ability: { id: number; name: string };
+    ability: { id: number; name: string; description?: string };
     slot: number;
     isHidden: boolean;
   }>;
@@ -94,7 +94,7 @@ export class PokemonMapper {
 
   private static mapAbilities(
     abilities: Array<{
-      ability: { id: number; name: string };
+      ability: { id: number; name: string; description?: string };
       slot: number;
       isHidden: boolean;
     }>,
@@ -103,6 +103,7 @@ export class PokemonMapper {
       ? abilities.map((pa) => ({
           id: pa.ability.id,
           name: pa.ability.name,
+          description: pa.ability.description,
           slot: pa.slot,
           isHidden: pa.isHidden,
         }))

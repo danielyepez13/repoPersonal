@@ -1,7 +1,8 @@
 <script lang="ts">
   // @ts-ignore
   import type { PageData } from "./$types";
-  import { goto } from '$app/navigation';
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
 
   export let data: PageData;
 
@@ -9,10 +10,27 @@
   let movesLoading = false;
   let movesLoaded = false;
   let isMovesExpanded = false;
+  let backUrl = "/";
+
+  $: {
+    // Leer parámetros de la URL
+    const pageParam = $page.url.searchParams.get("page");
+    const limitParam = $page.url.searchParams.get("limit");
+
+    // Construir URL de retorno
+    if (pageParam || limitParam) {
+      const params = new URLSearchParams();
+      if (pageParam) params.append("page", pageParam);
+      if (limitParam) params.append("limit", limitParam);
+      backUrl = `/?${params.toString()}`;
+    } else {
+      backUrl = "/";
+    }
+  }
 
   async function toggleMovesExpander() {
     isMovesExpanded = !isMovesExpanded;
-    
+
     // Si se abre y no hay datos cargados, cargar
     if (isMovesExpanded && !movesLoaded && !movesLoading) {
       await loadMoves();
@@ -21,17 +39,19 @@
 
   async function loadMoves() {
     if (movesLoaded || movesLoading) return;
-    
+
     movesLoading = true;
     try {
-      const response = await fetch(`/pokemon/${data.pokemon.pokedexNumber}/moves`);
+      const response = await fetch(
+        `/pokemon/${data.pokemon.pokedexNumber}/moves`
+      );
       if (response.ok) {
         const result = await response.json();
         moves = result.moves || [];
         movesLoaded = true;
       }
     } catch (error) {
-      console.error('Error loading moves:', error);
+      console.error("Error loading moves:", error);
     } finally {
       movesLoading = false;
     }
@@ -44,17 +64,17 @@
 
 {#if data?.pokemon}
   <div class="pokemon-detail-container">
-    <a href="/" class="back-link">← Volver al listado</a>
-    
+    <a href={backUrl} class="back-link">← Volver al listado</a>
+
     <div class="pokemon-header">
       <div class="pokemon-image">
         <img src={data?.pokemon?.spriteUrl} alt={data?.pokemon?.name} />
       </div>
-      
+
       <div class="pokemon-header-info">
         <h1>{data?.pokemon?.name}</h1>
         <p class="pokedex-number">#{data?.pokemon?.pokedexNumber}</p>
-        
+
         <div class="basic-info">
           <div class="info-item">
             <span class="label">Altura:</span>
@@ -81,10 +101,17 @@
         <h2>Habilidades</h2>
         <div class="abilities-list">
           {#each data?.pokemon?.abilities || [] as ability}
-            <div class="ability-item">
-              <span class="ability-name">{ability.name}</span>
-              {#if ability.isHidden}
-                <span class="hidden-badge">Oculta</span>
+            <div class="ability-tooltip-container">
+              <div class="ability-item">
+                <span class="ability-name">{ability.name}</span>
+                {#if ability.isHidden}
+                  <span class="hidden-badge">Oculta</span>
+                {/if}
+              </div>
+              {#if ability.description}
+                <div class="ability-tooltip">
+                  <p class="tooltip-description">{ability.description}</p>
+                </div>
               {/if}
             </div>
           {/each}
@@ -97,42 +124,66 @@
           <div class="stat">
             <span class="stat-name">HP</span>
             <div class="stat-bar">
-              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.hp || 0) / 1.5}%"></div>
+              <div
+                class="stat-fill"
+                style="width: {(data?.pokemon?.stats?.hp || 0) / 1.5}%"
+              ></div>
             </div>
             <span class="stat-value">{data?.pokemon?.stats?.hp || 0}</span>
           </div>
           <div class="stat">
             <span class="stat-name">Ataque</span>
             <div class="stat-bar">
-              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.attack || 0) / 1.5}%"></div>
+              <div
+                class="stat-fill"
+                style="width: {(data?.pokemon?.stats?.attack || 0) / 1.5}%"
+              ></div>
             </div>
             <span class="stat-value">{data?.pokemon?.stats?.attack || 0}</span>
           </div>
           <div class="stat">
             <span class="stat-name">Defensa</span>
             <div class="stat-bar">
-              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.defense || 0) / 1.5}%"></div>
+              <div
+                class="stat-fill"
+                style="width: {(data?.pokemon?.stats?.defense || 0) / 1.5}%"
+              ></div>
             </div>
             <span class="stat-value">{data?.pokemon?.stats?.defense || 0}</span>
           </div>
           <div class="stat">
             <span class="stat-name">Ataque Especial</span>
             <div class="stat-bar">
-              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.specialAttack || 0) / 1.5}%"></div>
+              <div
+                class="stat-fill"
+                style="width: {(data?.pokemon?.stats?.specialAttack || 0) /
+                  1.5}%"
+              ></div>
             </div>
-            <span class="stat-value">{data?.pokemon?.stats?.specialAttack || 0}</span>
+            <span class="stat-value"
+              >{data?.pokemon?.stats?.specialAttack || 0}</span
+            >
           </div>
           <div class="stat">
             <span class="stat-name">Defensa Especial</span>
             <div class="stat-bar">
-              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.specialDefense || 0) / 1.5}%"></div>
+              <div
+                class="stat-fill"
+                style="width: {(data?.pokemon?.stats?.specialDefense || 0) /
+                  1.5}%"
+              ></div>
             </div>
-            <span class="stat-value">{data?.pokemon?.stats?.specialDefense || 0}</span>
+            <span class="stat-value"
+              >{data?.pokemon?.stats?.specialDefense || 0}</span
+            >
           </div>
           <div class="stat">
             <span class="stat-name">Velocidad</span>
             <div class="stat-bar">
-              <div class="stat-fill" style="width: {(data?.pokemon?.stats?.speed || 0) / 1.5}%"></div>
+              <div
+                class="stat-fill"
+                style="width: {(data?.pokemon?.stats?.speed || 0) / 1.5}%"
+              ></div>
             </div>
             <span class="stat-value">{data?.pokemon?.stats?.speed || 0}</span>
           </div>
@@ -143,13 +194,13 @@
         <button class="expander-header" on:click={toggleMovesExpander}>
           <span class="expander-icon" class:expanded={isMovesExpanded}>▾</span>
           <h2 class="expander-title">
-            Movimientos {moves.length > 0 ? `(${moves.length})` : ''}
+            Movimientos {moves.length > 0 ? `(${moves.length})` : ""}
           </h2>
           {#if movesLoading}
             <span class="expander-status">Cargando...</span>
           {/if}
         </button>
-        
+
         {#if isMovesExpanded}
           <div class="expander-content">
             {#if movesLoading}
@@ -166,25 +217,30 @@
                   <div class="move-col-accuracy">Precisión</div>
                 </div>
                 {#each moves as move}
-                  <button 
-                    class="move-row" 
+                  <button
+                    class="move-row"
                     on:click={() => goToMoveDetail(move.pokeApiId)}
                     type="button"
                   >
                     <div class="move-col-name">{move.name}</div>
                     <div class="move-col-type">
-                      <span class="type-badge" data-type={move.type?.name || 'normal'}>
-                        {move.type?.name || 'normal'}
+                      <span
+                        class="type-badge"
+                        data-type={move.type?.name || "normal"}
+                      >
+                        {move.type?.name || "normal"}
                       </span>
                     </div>
-                    <div class="move-col-power">{move.power || '-'}</div>
-                    <div class="move-col-pp">{move.pp || '-'}</div>
-                    <div class="move-col-accuracy">{move.accuracy || '-'}</div>
+                    <div class="move-col-power">{move.power || "-"}</div>
+                    <div class="move-col-pp">{move.pp || "-"}</div>
+                    <div class="move-col-accuracy">{move.accuracy || "-"}</div>
                   </button>
                 {/each}
               </div>
             {:else}
-              <p class="no-moves">Este Pokémon no tiene movimientos registrados.</p>
+              <p class="no-moves">
+                Este Pokémon no tiene movimientos registrados.
+              </p>
             {/if}
           </div>
         {/if}
@@ -342,24 +398,64 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   }
 
-  .type-badge[data-type="normal"] { background: linear-gradient(135deg, #a8a878 0%, #8b8b5f 100%); }
-  .type-badge[data-type="fire"] { background: linear-gradient(135deg, #f08030 0%, #d86820 100%); }
-  .type-badge[data-type="water"] { background: linear-gradient(135deg, #6890f0 0%, #4a7fd0 100%); }
-  .type-badge[data-type="electric"] { background: linear-gradient(135deg, #f8d030 0%, #d8b820 100%); color: #333; }
-  .type-badge[data-type="grass"] { background: linear-gradient(135deg, #78c850 0%, #5ca838 100%); }
-  .type-badge[data-type="ice"] { background: linear-gradient(135deg, #98d8d8 0%, #78b8b8 100%); color: #333; }
-  .type-badge[data-type="fighting"] { background: linear-gradient(135deg, #c03028 0%, #a02018 100%); }
-  .type-badge[data-type="poison"] { background: linear-gradient(135deg, #a040a0 0%, #803080 100%); }
-  .type-badge[data-type="ground"] { background: linear-gradient(135deg, #e0c068 0%, #c0a850 100%); color: #333; }
-  .type-badge[data-type="flying"] { background: linear-gradient(135deg, #a890f0 0%, #8870d0 100%); }
-  .type-badge[data-type="psychic"] { background: linear-gradient(135deg, #f85888 0%, #d83860 100%); }
-  .type-badge[data-type="bug"] { background: linear-gradient(135deg, #a8b820 0%, #88a018 100%); }
-  .type-badge[data-type="rock"] { background: linear-gradient(135deg, #b8a038 0%, #988028 100%); }
-  .type-badge[data-type="ghost"] { background: linear-gradient(135deg, #705898 0%, #584080 100%); }
-  .type-badge[data-type="dragon"] { background: linear-gradient(135deg, #7038f8 0%, #5820d8 100%); }
-  .type-badge[data-type="dark"] { background: linear-gradient(135deg, #705848 0%, #584038 100%); }
-  .type-badge[data-type="steel"] { background: linear-gradient(135deg, #b8b8d0 0%, #9898b0 100%); color: #333; }
-  .type-badge[data-type="fairy"] { background: linear-gradient(135deg, #ee99ac 0%, #ce7a8c 100%); }
+  .type-badge[data-type="normal"] {
+    background: linear-gradient(135deg, #a8a878 0%, #8b8b5f 100%);
+  }
+  .type-badge[data-type="fire"] {
+    background: linear-gradient(135deg, #f08030 0%, #d86820 100%);
+  }
+  .type-badge[data-type="water"] {
+    background: linear-gradient(135deg, #6890f0 0%, #4a7fd0 100%);
+  }
+  .type-badge[data-type="electric"] {
+    background: linear-gradient(135deg, #f8d030 0%, #d8b820 100%);
+    color: #333;
+  }
+  .type-badge[data-type="grass"] {
+    background: linear-gradient(135deg, #78c850 0%, #5ca838 100%);
+  }
+  .type-badge[data-type="ice"] {
+    background: linear-gradient(135deg, #98d8d8 0%, #78b8b8 100%);
+    color: #333;
+  }
+  .type-badge[data-type="fighting"] {
+    background: linear-gradient(135deg, #c03028 0%, #a02018 100%);
+  }
+  .type-badge[data-type="poison"] {
+    background: linear-gradient(135deg, #a040a0 0%, #803080 100%);
+  }
+  .type-badge[data-type="ground"] {
+    background: linear-gradient(135deg, #e0c068 0%, #c0a850 100%);
+    color: #333;
+  }
+  .type-badge[data-type="flying"] {
+    background: linear-gradient(135deg, #a890f0 0%, #8870d0 100%);
+  }
+  .type-badge[data-type="psychic"] {
+    background: linear-gradient(135deg, #f85888 0%, #d83860 100%);
+  }
+  .type-badge[data-type="bug"] {
+    background: linear-gradient(135deg, #a8b820 0%, #88a018 100%);
+  }
+  .type-badge[data-type="rock"] {
+    background: linear-gradient(135deg, #b8a038 0%, #988028 100%);
+  }
+  .type-badge[data-type="ghost"] {
+    background: linear-gradient(135deg, #705898 0%, #584080 100%);
+  }
+  .type-badge[data-type="dragon"] {
+    background: linear-gradient(135deg, #7038f8 0%, #5820d8 100%);
+  }
+  .type-badge[data-type="dark"] {
+    background: linear-gradient(135deg, #705848 0%, #584038 100%);
+  }
+  .type-badge[data-type="steel"] {
+    background: linear-gradient(135deg, #b8b8d0 0%, #9898b0 100%);
+    color: #333;
+  }
+  .type-badge[data-type="fairy"] {
+    background: linear-gradient(135deg, #ee99ac 0%, #ce7a8c 100%);
+  }
 
   .pokemon-sections {
     display: flex;
@@ -373,6 +469,7 @@
     border-radius: 16px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border: 1px solid #e5e7eb;
+    overflow: visible;
   }
 
   :global(.dark) .section {
@@ -400,6 +497,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1.2rem;
+    overflow: visible;
   }
 
   .ability-item {
@@ -411,6 +509,7 @@
     border-radius: 12px;
     border: 1px solid #e5e7eb;
     transition: all 0.3s ease;
+    overflow: visible;
   }
 
   :global(.dark) .ability-item {
@@ -692,5 +791,67 @@
     background-color: #1e293b;
     color: #6b7280;
     border-color: #334155;
+  }
+
+  /* Tooltips para habilidades */
+  .ability-tooltip-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .ability-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: #f0f9ff;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    white-space: normal;
+    width: 200px;
+    max-width: 200px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.3s ease,
+      visibility 0.3s ease;
+    pointer-events: none;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid #334155;
+  }
+
+  .ability-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1f2937;
+  }
+
+  .ability-tooltip-container:hover .ability-tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .tooltip-description {
+    margin: 0;
+    line-height: 1.4;
+    font-weight: 500;
+  }
+
+  :global(.dark) .ability-tooltip {
+    background: #0f172a;
+    color: #f0f9ff;
+    border-color: #475569;
+  }
+
+  :global(.dark) .ability-tooltip::after {
+    border-top-color: #0f172a;
   }
 </style>

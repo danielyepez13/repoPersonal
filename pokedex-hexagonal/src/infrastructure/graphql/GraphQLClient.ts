@@ -32,6 +32,7 @@ export class GraphQLPokemonClient {
             name
             slot
             isHidden
+            description
           }
         }
       }
@@ -71,6 +72,7 @@ export class GraphQLPokemonClient {
             name
             slot
             isHidden
+            description
           }
           stats {
             id
@@ -226,6 +228,7 @@ export class GraphQLPokemonClient {
             name
             slot
             isHidden
+            description
           }
           stats {
             id

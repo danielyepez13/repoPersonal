@@ -26,7 +26,8 @@ export const load: PageLoad = async ({ params }) => {
                 types: pokemonData.types.map((t: any) => t.name),
                 abilities: pokemonData.abilities.map((a: any) => ({
                     name: a.name,
-                    isHidden: a.isHidden
+                    isHidden: a.isHidden,
+                    description: a.description
                 })),
                 stats: {
                     hp: pokemonData.stats.find((s: any) => s.name === 'hp')?.baseStat || 0,

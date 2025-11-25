@@ -15,7 +15,7 @@ export class PrismaPokemonRepository implements PokemonRepository {
   ) {}
 
   async findById(id: number): Promise<Pokemon | null> {
-    return await PrismaPokemonHelpers.findPokemonSafe(
+    const pokemon = await PrismaPokemonHelpers.findPokemonSafe(
       () =>
         this.prisma.pokemon.findUnique({
           where: { pokedexNumber: id },
@@ -23,6 +23,13 @@ export class PrismaPokemonRepository implements PokemonRepository {
         }),
       'finding Pokemon',
     );
+
+    // Actualizar descripciones de habilidades si están vacías
+    if (pokemon) {
+      await this.updateAbilityDescriptions(pokemon.id);
+    }
+
+    return pokemon;
   }
 
   async findManyByIds(ids: number[]): Promise<Pokemon[]> {
@@ -38,7 +45,7 @@ export class PrismaPokemonRepository implements PokemonRepository {
   }
 
   async findByName(name: string): Promise<Pokemon | null> {
-    return await PrismaPokemonHelpers.findPokemonSafe(
+    const pokemon = await PrismaPokemonHelpers.findPokemonSafe(
       () =>
         this.prisma.pokemon.findFirst({
           where: { name: { equals: name, mode: 'insensitive' } },
@@ -46,6 +53,13 @@ export class PrismaPokemonRepository implements PokemonRepository {
         }),
       'finding Pokemon by name',
     );
+
+    // Actualizar descripciones de habilidades si están vacías
+    if (pokemon) {
+      await this.updateAbilityDescriptions(pokemon.id);
+    }
+
+    return pokemon;
   }
 
   async save(
@@ -132,15 +146,51 @@ export class PrismaPokemonRepository implements PokemonRepository {
 
   private async saveAbilities(
     pokemonId: number,
-    abilities: Array<{ name: string; slot: number; isHidden: boolean }>,
+    abilities: Array<{
+      name: string;
+      slot: number;
+      isHidden: boolean;
+      description?: string;
+    }>,
   ): Promise<void> {
     await this.prisma.pokemonAbility.deleteMany({ where: { pokemonId } });
 
     for (const ability of abilities) {
-      const abilityRecord = await PrismaPokemonHelpers.getOrCreateRecord(
-        () => this.prisma.ability.findUnique({ where: { name: ability.name } }),
-        () => this.prisma.ability.create({ data: { name: ability.name } }),
-      );
+      let description = ability.description;
+
+      // Siempre buscar descripción en PokeAPI si no la tiene
+      if (!description) {
+        try {
+          const abilityDetails = await this.pokeApiService.fetchAbilityDetails(
+            ability.name,
+          );
+          description = abilityDetails.description;
+        } catch (error) {
+          console.warn(
+            `Could not fetch ability details from PokeAPI for ${ability.name}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      }
+
+      let abilityRecord = await this.prisma.ability.findUnique({
+        where: { name: ability.name },
+      });
+
+      if (abilityRecord) {
+        // Actualizar descripción si está vacía
+        if (!abilityRecord.description && description) {
+          abilityRecord = await this.prisma.ability.update({
+            where: { id: abilityRecord.id },
+            data: { description },
+          });
+        }
+      } else {
+        // Crear nueva habilidad con descripción
+        abilityRecord = await this.prisma.ability.create({
+          data: { name: ability.name, description: description || null },
+        });
+      }
 
       await this.prisma.pokemonAbility.create({
         data: {
@@ -719,6 +769,43 @@ export class PrismaPokemonRepository implements PokemonRepository {
     } catch (error) {
       console.error('Error getting move by id:', error);
       throw error;
+    }
+  }
+
+  private async updateAbilityDescriptions(pokemonId: number): Promise<void> {
+    try {
+      // Obtener todas las habilidades del Pokémon
+      const pokemonAbilities = await this.prisma.pokemonAbility.findMany({
+        where: { pokemonId },
+        include: { ability: true },
+      });
+
+      // Para cada habilidad sin descripción, buscar en PokeAPI
+      for (const pa of pokemonAbilities) {
+        if (!pa.ability.description) {
+          try {
+            const abilityDetails =
+              await this.pokeApiService.fetchAbilityDetails(pa.ability.name);
+
+            if (abilityDetails.description) {
+              await this.prisma.ability.update({
+                where: { id: pa.ability.id },
+                data: { description: abilityDetails.description },
+              });
+            }
+          } catch (error) {
+            console.warn(
+              `Could not fetch ability details from PokeAPI for ${pa.ability.name}:`,
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(
+        `Error updating ability descriptions for Pokemon ${pokemonId}:`,
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 }

@@ -30,7 +30,8 @@ export const load: PageLoad = async ({ url }) => {
                     id: a.id,
                     name: a.name,
                     slot: a.slot,
-                    isHidden: a.isHidden
+                    isHidden: a.isHidden,
+                    description: a.description
                 }))
             })),
             pagination: {

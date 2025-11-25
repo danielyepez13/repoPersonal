@@ -8,6 +8,9 @@ export class PokemonAbilityEntity {
   @Field()
   name: string;
 
+  @Field({ nullable: true })
+  description?: string;
+
   @Field(() => Int)
   slot: number;
 
